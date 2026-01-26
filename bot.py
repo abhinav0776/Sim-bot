@@ -38,6 +38,8 @@ import io
 import json
 import os
 from datetime import datetime
+import json
+import os
 
 # ============================================================================
 # BOT SETUP
@@ -55,7 +57,30 @@ TEAMS_FILE = 'teams.json'
 STATS_FILE = 'stats.json'
 WORLDCUP_FILE = 'worldcup.json'
 HISTORY_FILE = 'history.json'
+# filtering players
 
+def load_real_players():
+    """Load real cricket players list from JSON file."""
+    try:
+        with open("real_players.json", "r") as f:
+            return [p.strip() for p in json.load(f)]
+    except FileNotFoundError:
+        return []
+
+REAL_CRICKETERS = load_real_players()
+
+def is_real_cricketer(name):
+    """Return True if name matches a real cricketer."""
+    name_lower = name.strip().lower()
+    for p in REAL_CRICKETERS:
+        if name_lower == p.lower():
+            return True
+    return False
+
+def filter_real_players(squad):
+    """Filter squad to include only real players; fallback to squad if none."""
+    filtered = [p for p in squad if is_real_cricketer(p)]
+    return filtered if filtered else squad
 # ============================================================================
 # DATA LOADING AND SAVING
 # ============================================================================
@@ -545,8 +570,8 @@ async def sim(ctx, *, teams_input: str):
         team2_name = team_names[1].strip()
         
         # Get squads
-        team1_squad = teams_data.get(team1_name, [])
-        team2_squad = teams_data.get(team2_name, [])
+        team1_squad = filter_real_players(teams_data.get(team1_name, []))
+team2_squad = filter_real_players(teams_data.get(team2_name, []))
         
         # Send simulation message
         sim_msg = await ctx.send(f"🏏 **Simulating Match**\n{team1_name} vs {team2_name}\n\n⏳ Toss happening...")
