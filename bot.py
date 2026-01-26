@@ -776,7 +776,17 @@ async def removestats(ctx):
     
     save_data(STATS_FILE, player_stats)
     await ctx.send("✅ Stats removed successfully!")
-
+# BOT COMMOND PREFIX
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setprefix(ctx, new_prefix):
+    guild_id = str(ctx.guild.id)
+    prefixes[guild_id] = new_prefix
+    
+    with open("prefixes.json", "w") as f:
+        json.dump(prefixes, f, indent=4)
+    
+    await ctx.send(f"Prefix set to `{new_prefix}` for this server!")
 # ============================================================================
 # BOT COMMANDS - LEADERBOARDS AND PLAYER INFO
 # ============================================================================
