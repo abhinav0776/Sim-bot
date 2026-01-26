@@ -643,7 +643,17 @@ async def teamadd(ctx, team_name: str, *, players: str):
     Add a team with squad
     Usage: !teamadd TeamName Player1, Player2, Player3...
     """
+    # Load real players
+    with open("real_players.json", "r") as f:
+        real_players = json.load(f)
+    
     player_list = [p.strip() for p in players.split(',')]
+    
+    # Validate players
+    invalid_players = [p for p in player_list if p not in real_players]
+    if invalid_players:
+        await ctx.send(f"❌ These players are not recognized: {', '.join(invalid_players)}")
+        return
     
     if len(player_list) < 11:
         await ctx.send(f"⚠️ Warning: Only {len(player_list)} players added. Minimum 11 recommended.")
@@ -655,7 +665,7 @@ async def teamadd(ctx, team_name: str, *, players: str):
     embed.add_field(name=f"Squad ({len(player_list)} players)", value=", ".join(player_list), inline=False)
     embed.set_footer(text=f"Added by {ctx.author.name}")
     await ctx.send(embed=embed)
-
+    
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def teamremove(ctx, team_name: str):
