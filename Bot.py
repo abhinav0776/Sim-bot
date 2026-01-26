@@ -1158,5 +1158,8 @@ async def help_cricket(ctx):
 # Import asyncio for delays
 import asyncio
 
-# Get token from environment variable for hosting
-bot.run ('MTQ0Nzk3MTEzNzI3ODcwNTc1Ng.GSD4k0.zdQOsEG50Xi94rGafep5qJTDED3mVYBW3TZDVs')
+import os
+
+TOKEN = os.getenv("TOKEN")  # get the token from Railway variable
+
+bot.run(TOKEN)
