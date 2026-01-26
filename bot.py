@@ -558,25 +558,30 @@ async def help_cricket(ctx):
         inline=False
     )
     
-    embed.add_fiel
-    (!player \n"
-"View player profile and stats\n\n"
-"!players [search]\n"
-"List all available players or search by name"
-),
-inline=False
-)
-embed.add_field(
-    name="📊 Statistics & History",
+    embed.add_field(
+    name="🎮 Match Simulation",
     value=(
-        "**!lb [category]**\n"
-        "Show leaderboards (runs, wickets, average, etc.)\n\n"
-        "**!history [limit]**\n"
-        "Show recent match history\n\n"
-        "**!teamstats <team>**\n"
-        "View team statistics and overall rating"
+        "**!sim <team1> <team2>**\n"
+        "Simulate a match between two teams\n\n"
+        "**!quicksim <team1> <team2>**\n"
+        "Quick simulation without over-by-over updates"
     ),
     inline=False
+)
+
+embed.add_field(
+    name="👤 Player Info",
+    value=(
+        "**!player <name>**\n"
+        "View player profile and stats\n\n"
+        "**!players [search]**\n"
+        "List all available players or search by name"
+    ),
+    inline=False
+)
+
+embed.add_field(
+    name="📊 Statistics & History",
 )
 
 embed.add_field(
@@ -1374,4 +1379,10 @@ await ctx.send(f"✅ Team **{team_name}** has been deleted.")
 ============================================================================
 RUN BOT
 ============================================================================       
-TOKEN = os.getenv("TOKEN")
+
+if __name__ == "__main__":
+    TOKEN = os.getenv("DISCORD_TOKEN")
+    if not TOKEN:
+        print("❌ Error: DISCORD_TOKEN environment variable not set!")
+    else:
+        bot.run(TOKEN)
