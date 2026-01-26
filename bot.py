@@ -57,6 +57,44 @@ TEAMS_FILE = 'teams.json'
 STATS_FILE = 'stats.json'
 WORLDCUP_FILE = 'worldcup.json'
 HISTORY_FILE = 'history.json'
+PREFIX_FILE = "prefixes.json"
+# prefix
+# Load prefixes
+def load_prefixes():
+    if os.path.exists(PREFIX_FILE):
+        with open(PREFIX_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+# Save prefixes
+def save_prefixes(prefixes):
+    with open(PREFIX_FILE, "w") as f:
+        json.dump(prefixes, f, indent=4)
+
+prefixes = load_prefixes()
+
+# Function to get prefix for each guild
+def get_prefix(bot, message):
+    return prefixes.get(str(message.guild.id), "!")  # default: "!"
+
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix=get_prefix, intents=intents)
+
+# ==============================
+# Slash command to set prefix
+# ==============================
+@bot.tree.command(name="setprefix", description="Set a custom prefix for this server")
+@app_commands.describe(new_prefix="The new prefix to use for this server")
+async def setprefix(interaction: discord.Interaction, new_prefix: str):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ You must be an admin to set the prefix!", ephemeral=True)
+        return
+    
+    prefixes[str(interaction.guild.id)] = new_prefix
+    save_prefixes(prefixes)
+    
+    await interaction.response.send_message(f"✅ Prefix updated to `{new_prefix}` for this server!")
 # filtering players
 
 def load_real_players():
