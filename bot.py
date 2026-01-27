@@ -96,7 +96,8 @@ PLAYER_DATABASE = {
     "BlessingMuzarabani": {"batting": 20, "bowling": 75, "fielding": 70, "role": "bowler", "style": "fast"},
     "RegisChakabva": {"batting": 69, "bowling": 10, "fielding": 77, "role": "wicket_keeper", "style": "right_hand"},
     "CraigErvine": {"batting": 74, "bowling": 30, "fielding": 75, "role": "batsman", "style": "left_hand"},
-    "RichardNgarava": {"batting": 24, "bowling": 73, "fielding": 69, "role": "bowler", "style": "fast"}
+    "RichardNgarava": {"batting": 24, "bowling": 73, "fielding": 69, "role": "bowler", "style": "fast"},
+    
 # Legends / Retired Players
     "SachinTendulkar": {"batting": 99, "bowling": 35, "fielding": 88, "role": "batsman", "style": "right_hand"},
     "BrianLara": {"batting": 98, "bowling": 25, "fielding": 85, "role": "batsman", "style": "left_hand"},
