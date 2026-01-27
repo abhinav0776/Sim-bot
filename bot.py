@@ -97,7 +97,7 @@ PLAYER_DATABASE = {
     "RegisChakabva": {"batting": 69, "bowling": 10, "fielding": 77, "role": "wicket_keeper", "style": "right_hand"},
     "CraigErvine": {"batting": 74, "bowling": 30, "fielding": 75, "role": "batsman", "style": "left_hand"},
     "RichardNgarava": {"batting": 24, "bowling": 73, "fielding": 69, "role": "bowler", "style": "fast"}
-    # Legends / Retired Players
+# Legends / Retired Players
     "SachinTendulkar": {"batting": 99, "bowling": 35, "fielding": 88, "role": "batsman", "style": "right_hand"},
     "BrianLara": {"batting": 98, "bowling": 25, "fielding": 85, "role": "batsman", "style": "left_hand"},
     "RickyPonting": {"batting": 96, "bowling": 30, "fielding": 94, "role": "batsman", "style": "right_hand"},
@@ -119,7 +119,7 @@ PLAYER_DATABASE = {
     "MalcolmMarshall": {"batting": 40, "bowling": 96, "fielding": 81, "role": "bowler", "style": "fast"},
     "CurtlyAmbrose": {"batting": 30, "bowling": 95, "fielding": 79, "role": "bowler", "style": "fast"},
 
-    # Modern Indian Players
+# Modern Indian Players
     "ShubmanGill": {"batting": 86, "bowling": 20, "fielding": 84, "role": "batsman", "style": "right_hand"},
     "IshanKishan": {"batting": 81, "bowling": 10, "fielding": 82, "role": "wicket_keeper", "style": "left_hand"},
     "ShreyasIyer": {"batting": 83, "bowling": 25, "fielding": 81, "role": "batsman", "style": "right_hand"},
