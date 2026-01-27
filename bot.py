@@ -318,6 +318,51 @@ def simulate_innings(team_name, squad, opp_squad, pitch, weather, target=None):
         'bowlers': bowler_stats
     }
 
+# ADD THIS CLASS HERE (before @bot.event)
+
+class ScorecardView(discord.ui.View):
+    def __init__(self, team1_innings, team2_innings, winner, pitch_name, weather_name, timeout=180):
+        super().__init__(timeout=timeout)
+        self.team1_innings = team1_innings
+        self.team2_innings = team2_innings
+        self.winner = winner
+        self.pitch_name = pitch_name
+        self.weather_name = weather_name
+    
+    @discord.ui.button(label=f"📊 Summary", style=discord.ButtonStyle.primary, custom_id="summary")
+    async def summary_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = create_match_summary(
+            self.team1_innings, self.team2_innings, 
+            self.winner, self.pitch_name, self.weather_name
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="🏏 Team 1 Batting", style=discord.ButtonStyle.success, custom_id="team1_bat")
+    async def team1_batting_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = create_batting_scorecard(self.team1_innings)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="⚾ Team 1 Bowling", style=discord.ButtonStyle.danger, custom_id="team1_bowl")
+    async def team1_bowling_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = create_bowling_scorecard(self.team2_innings)  # Team1 bowled against Team2
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="🏏 Team 2 Batting", style=discord.ButtonStyle.success, custom_id="team2_bat")
+    async def team2_batting_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = create_batting_scorecard(self.team2_innings)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="⚾ Team 2 Bowling", style=discord.ButtonStyle.danger, custom_id="team2_bowl")
+    async def team2_bowling_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = create_bowling_scorecard(self.team1_innings)  # Team2 bowled against Team1
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def on_timeout(self):
+        # Disable all buttons when view times out
+        for item in self.children:
+            item.disabled = True
+
+
 # Bot Events
 @bot.event
 async def on_ready():
@@ -561,6 +606,119 @@ def calculate_win_probability(team1_score, team1_wickets, team2_score, team2_wic
     win_prob = (base_prob + wickets_factor) / 2
     return max(5, min(95, win_prob))
 
+# ADD THE THREE HELPER FUNCTIONS HERE:
+
+def create_batting_scorecard(innings_data):
+    """Create batting scorecard embed"""
+    embed = discord.Embed(
+        title=f"🏏 {innings_data['team']} - Batting Scorecard",
+        color=0x00ff00
+    )
+    
+    # Sort batsmen by batting order (runs scored)
+    batsmen_list = [(player, stats) for player, stats in innings_data['batsmen'].items() 
+                    if stats['balls'] > 0 or stats['out']]
+    
+    scorecard_text = "```\n"
+    scorecard_text += f"{'Player':<20} {'R':<5} {'B':<5} {'4s':<4} {'6s':<4} {'SR':<6}\n"
+    scorecard_text += "-" * 50 + "\n"
+    
+    for player, stats in batsmen_list:
+        out_symbol = "*" if stats['out'] else ""
+        scorecard_text += f"{player:<20} {stats['runs']:<5} {stats['balls']:<5} "
+        scorecard_text += f"{stats['fours']:<4} {stats['sixes']:<4} {stats['strike_rate']:<6.1f}{out_symbol}\n"
+    
+    scorecard_text += "```"
+    embed.description = scorecard_text
+    
+    embed.add_field(
+        name="Total",
+        value=f"**{innings_data['total']}/{innings_data['wickets']}** ({innings_data['overs']} overs)",
+        inline=False
+    )
+    
+    return embed
+
+def create_bowling_scorecard(innings_data):
+    """Create bowling scorecard embed"""
+    embed = discord.Embed(
+        title=f"⚾ Bowling Against {innings_data['team']}",
+        color=0xff6b6b
+    )
+    
+    bowlers_list = [(bowler, stats) for bowler, stats in innings_data['bowlers'].items() 
+                    if stats['overs'] > 0]
+    
+    scorecard_text = "```\n"
+    scorecard_text += f"{'Bowler':<20} {'O':<4} {'R':<5} {'W':<4} {'Eco':<6}\n"
+    scorecard_text += "-" * 45 + "\n"
+    
+    for bowler, stats in bowlers_list:
+        scorecard_text += f"{bowler:<20} {stats['overs']:<4} {stats['runs']:<5} "
+        scorecard_text += f"{stats['wickets']:<4} {stats['economy']:<6.2f}\n"
+    
+    scorecard_text += "```"
+    embed.description = scorecard_text
+    
+    return embed
+
+def create_match_summary(team1_innings, team2_innings, winner, pitch_name, weather_name):
+    """Create match summary embed"""
+    embed = discord.Embed(title="📊 Match Summary", color=0xffd700)
+    
+    # Winner
+    if team1_innings['total'] > team2_innings['total']:
+        margin = team1_innings['total'] - team2_innings['total']
+        result = f"🏆 **{winner}** won by **{margin} runs**"
+    else:
+        wickets_rem = 10 - team2_innings['wickets']
+        result = f"🏆 **{winner}** won by **{wickets_rem} wickets**"
+    
+    embed.add_field(name="Result", value=result, inline=False)
+    
+    # Scores
+    embed.add_field(
+        name=f"{team1_innings['team']}",
+        value=f"**{team1_innings['total']}/{team1_innings['wickets']}** ({team1_innings['overs']})",
+        inline=True
+    )
+    embed.add_field(
+        name=f"{team2_innings['team']}",
+        value=f"**{team2_innings['total']}/{team2_innings['wickets']}** ({team2_innings['overs']})",
+        inline=True
+    )
+    
+    # Top performers
+    team1_batsmen = [(p, s) for p, s in team1_innings['batsmen'].items() if s['balls'] > 0]
+    team2_batsmen = [(p, s) for p, s in team2_innings['batsmen'].items() if s['balls'] > 0]
+    
+    performers_text = ""
+    if team1_batsmen:
+        top_bat1 = max(team1_batsmen, key=lambda x: x[1]['runs'])
+        performers_text += f"⭐ **{top_bat1[0]}** - {top_bat1[1]['runs']}({top_bat1[1]['balls']})\n"
+    
+    if team2_batsmen:
+        top_bat2 = max(team2_batsmen, key=lambda x: x[1]['runs'])
+        performers_text += f"⭐ **{top_bat2[0]}** - {top_bat2[1]['runs']}({top_bat2[1]['balls']})\n"
+    
+    # Best bowler
+    all_bowlers = []
+    for bowler, stats in team1_innings['bowlers'].items():
+        if stats['wickets'] > 0:
+            all_bowlers.append((bowler, stats))
+    for bowler, stats in team2_innings['bowlers'].items():
+        if stats['wickets'] > 0:
+            all_bowlers.append((bowler, stats))
+    
+    if all_bowlers:
+        best_bowler = max(all_bowlers, key=lambda x: x[1]['wickets'])
+        performers_text += f"🎯 **{best_bowler[0]}** - {best_bowler[1]['wickets']}/{best_bowler[1]['runs']}"
+    
+    embed.add_field(name="Top Performers", value=performers_text, inline=False)
+    embed.add_field(name="Conditions", value=f"🌱 {pitch_name} | 🌤 {weather_name}", inline=False)
+    
+    return embed
+
 @bot.command(name='sim')
 async def simulate_match(ctx, team1_name: str, team2_name: str):
     """Simulate a match with over-by-over updates"""
@@ -680,54 +838,26 @@ async def simulate_match(ctx, team1_name: str, team2_name: str):
     
     save_data(TEAMS_FILE, teams_data)
     
-    # Final scorecard
-    embed = discord.Embed(title="📋 FINAL SCORECARD", color=0xffd700)
-    
-    if final_team1['total'] > final_team2['total']:
-        result = f"🏆 **{team1_name}** won by **{final_team1['total'] - final_team2['total']} runs**"
-    elif final_team2['total'] > final_team1['total']:
-        wickets_rem = 10 - final_team2['wickets']
-        result = f"🏆 **{team2_name}** won by **{wickets_rem} wickets**"
-    else:
-        result = f"🏆 **{winner}** won (tie-breaker)"
-    
-    embed.add_field(name="Result", value=result, inline=False)
-    
-    embed.add_field(
-        name=f"{final_team1['team']} 🏏",
-        value=f"**{final_team1['total']}/{final_team1['wickets']}** ({final_team1['overs']} overs)",
-        inline=True
-    )
-    embed.add_field(
-        name=f"{final_team2['team']} 🏏",
-        value=f"**{final_team2['total']}/{final_team2['wickets']}** ({final_team2['overs']} overs)",
-        inline=True
+    # Create interactive scorecard with buttons
+    summary_embed = create_match_summary(
+        final_team1, final_team2, winner, pitch_name, weather_name
     )
     
-    # Top performers
-    team1_batsmen = [(p, s) for p, s in final_team1['batsmen'].items() if s['balls'] > 0]
-    team2_batsmen = [(p, s) for p, s in final_team2['batsmen'].items() if s['balls'] > 0]
+    view = ScorecardView(
+        final_team1, final_team2, winner, pitch_name, weather_name
+    )
     
-    if team1_batsmen:
-        top_bat1 = max(team1_batsmen, key=lambda x: x[1]['runs'])
-        embed.add_field(
-            name=f"⭐ Top Scorer - {final_team1['team']}",
-            value=f"**{top_bat1[0]}** - {top_bat1[1]['runs']}({top_bat1[1]['balls']}) | SR: {top_bat1[1]['strike_rate']:.1f}",
-            inline=False
-        )
+    # Update button labels with actual team names
+    view.children[1].label = f"🏏 {final_team1['team']} Batting"
+    view.children[2].label = f"⚾ {final_team1['team']} Bowling"
+    view.children[3].label = f"🏏 {final_team2['team']} Batting"
+    view.children[4].label = f"⚾ {final_team2['team']} Bowling"
     
-    if team2_batsmen:
-        top_bat2 = max(team2_batsmen, key=lambda x: x[1]['runs'])
-        embed.add_field(
-            name=f"⭐ Top Scorer - {final_team2['team']}",
-            value=f"**{top_bat2[0]}** - {top_bat2[1]['runs']}({top_bat2[1]['balls']}) | SR: {top_bat2[1]['strike_rate']:.1f}",
-            inline=False
-        )
-    
-    embed.add_field(name="Conditions", value=f"🌱 {pitch_name} | 🌤 {weather_name}", inline=False)
-    embed.set_footer(text=f"Match completed at {datetime.now().strftime('%H:%M')}")
-    
-    await ctx.send(embed=embed)
+    await ctx.send(
+        "**🏏 Match Complete! Use buttons below to view detailed scorecards:**",
+        embed=summary_embed,
+        view=view
+    )
 
 @bot.command(name='players')
 async def list_players(ctx):
