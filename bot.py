@@ -97,6 +97,39 @@ PLAYER_DATABASE = {
     "RegisChakabva": {"batting": 69, "bowling": 10, "fielding": 77, "role": "wicket_keeper", "style": "right_hand"},
     "CraigErvine": {"batting": 74, "bowling": 30, "fielding": 75, "role": "batsman", "style": "left_hand"},
     "RichardNgarava": {"batting": 24, "bowling": 73, "fielding": 69, "role": "bowler", "style": "fast"}
+    # Legends / Retired Players
+    "SachinTendulkar": {"batting": 99, "bowling": 35, "fielding": 88, "role": "batsman", "style": "right_hand"},
+    "BrianLara": {"batting": 98, "bowling": 25, "fielding": 85, "role": "batsman", "style": "left_hand"},
+    "RickyPonting": {"batting": 96, "bowling": 30, "fielding": 94, "role": "batsman", "style": "right_hand"},
+    "JacquesKallis": {"batting": 94, "bowling": 84, "fielding": 90, "role": "all_rounder", "style": "right_hand"},
+    "KumarSangakkara": {"batting": 95, "bowling": 10, "fielding": 89, "role": "wicket_keeper", "style": "left_hand"},
+    "ABdeVilliers": {"batting": 97, "bowling": 25, "fielding": 96, "role": "batsman", "style": "right_hand"},
+    "MSDhoni": {"batting": 89, "bowling": 10, "fielding": 95, "role": "wicket_keeper", "style": "right_hand"},
+    "WasimAkram": {"batting": 55, "bowling": 96, "fielding": 82, "role": "all_rounder", "style": "fast"},
+    "ShaneWarne": {"batting": 50, "bowling": 98, "fielding": 80, "role": "bowler", "style": "spin"},
+    "GlennMcGrath": {"batting": 25, "bowling": 97, "fielding": 78, "role": "bowler", "style": "fast"},
+    "MuttiahMuralitharan": {"batting": 30, "bowling": 99, "fielding": 75, "role": "bowler", "style": "spin"},
+    "DaleSteyn": {"batting": 35, "bowling": 96, "fielding": 83, "role": "bowler", "style": "fast"},
+    "AdamGilchrist": {"batting": 91, "bowling": 10, "fielding": 93, "role": "wicket_keeper", "style": "left_hand"},
+    "VivRichards": {"batting": 98, "bowling": 40, "fielding": 91, "role": "batsman", "style": "right_hand"},
+    "ImranKhan": {"batting": 78, "bowling": 92, "fielding": 86, "role": "all_rounder", "style": "fast"},
+    "KapilDev": {"batting": 75, "bowling": 88, "fielding": 85, "role": "all_rounder", "style": "fast"},
+    "RichardHadlee": {"batting": 60, "bowling": 95, "fielding": 82, "role": "all_rounder", "style": "fast"},
+    "IanBotham": {"batting": 76, "bowling": 87, "fielding": 84, "role": "all_rounder", "style": "fast"},
+    "MalcolmMarshall": {"batting": 40, "bowling": 96, "fielding": 81, "role": "bowler", "style": "fast"},
+    "CurtlyAmbrose": {"batting": 30, "bowling": 95, "fielding": 79, "role": "bowler", "style": "fast"},
+
+    # Modern Indian Players
+    "ShubmanGill": {"batting": 86, "bowling": 20, "fielding": 84, "role": "batsman", "style": "right_hand"},
+    "IshanKishan": {"batting": 81, "bowling": 10, "fielding": 82, "role": "wicket_keeper", "style": "left_hand"},
+    "ShreyasIyer": {"batting": 83, "bowling": 25, "fielding": 81, "role": "batsman", "style": "right_hand"},
+    "WashingtonSundar": {"batting": 62, "bowling": 76, "fielding": 80, "role": "all_rounder", "style": "spin"},
+    "AxarPatel": {"batting": 58, "bowling": 79, "fielding": 82, "role": "all_rounder", "style": "spin"},
+    "KuldeepYadav": {"batting": 24, "bowling": 84, "fielding": 72, "role": "bowler", "style": "spin"},
+    "ArshdeepSingh": {"batting": 26, "bowling": 80, "fielding": 74, "role": "bowler", "style": "fast"},
+    "ShardulThakur": {"batting": 60, "bowling": 75, "fielding": 78, "role": "all_rounder", "style": "fast"},
+    "DeepakChahar": {"batting": 48, "bowling": 77, "fielding": 75, "role": "all_rounder", "style": "fast"},
+    "PrasidhKrishna": {"batting": 24, "bowling": 78, "fielding": 72, "role": "bowler", "style": "fast"}
     # More players (add the ones I provided earlier here)
 }
 
