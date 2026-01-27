@@ -20,48 +20,83 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Player Database
 PLAYER_DATABASE = {
     # Indian Players
-    "Virat Kohli": {"batting": 95, "bowling": 20, "fielding": 92, "role": "batsman", "style": "right_hand"},
-    "Rohit Sharma": {"batting": 94, "bowling": 25, "fielding": 85, "role": "batsman", "style": "right_hand"},
-    "Jasprit Bumrah": {"batting": 35, "bowling": 98, "fielding": 80, "role": "bowler", "style": "fast"},
-    "Hardik Pandya": {"batting": 82, "bowling": 78, "fielding": 88, "role": "all_rounder", "style": "right_hand"},
-    "KL Rahul": {"batting": 88, "bowling": 15, "fielding": 90, "role": "batsman", "style": "right_hand"},
-    "Ravindra Jadeja": {"batting": 75, "bowling": 88, "fielding": 95, "role": "all_rounder", "style": "spin"},
-    "Mohammed Shami": {"batting": 30, "bowling": 92, "fielding": 75, "role": "bowler", "style": "fast"},
-    "Rishabh Pant": {"batting": 85, "bowling": 10, "fielding": 82, "role": "wicket_keeper", "style": "left_hand"},
-    "Suryakumar Yadav": {"batting": 90, "bowling": 20, "fielding": 87, "role": "batsman", "style": "right_hand"},
-    "Yuzvendra Chahal": {"batting": 25, "bowling": 86, "fielding": 70, "role": "bowler", "style": "spin"},
-    "Ravichandran Ashwin": {"batting": 55, "bowling": 90, "fielding": 78, "role": "all_rounder", "style": "spin"},
-    
+    "ViratKohli": {"batting": 95, "bowling": 20, "fielding": 92, "role": "batsman", "style": "right_hand"},
+    "RohitSharma": {"batting": 94, "bowling": 25, "fielding": 85, "role": "batsman", "style": "right_hand"},
+    "JaspritBumrah": {"batting": 35, "bowling": 98, "fielding": 80, "role": "bowler", "style": "fast"},
+    "HardikPandya": {"batting": 82, "bowling": 78, "fielding": 88, "role": "all_rounder", "style": "right_hand"},
+    "KLRahul": {"batting": 88, "bowling": 15, "fielding": 90, "role": "batsman", "style": "right_hand"},
+    "RavindraJadeja": {"batting": 75, "bowling": 88, "fielding": 95, "role": "all_rounder", "style": "spin"},
+    "MohammedShami": {"batting": 30, "bowling": 92, "fielding": 75, "role": "bowler", "style": "fast"},
+    "RishabhPant": {"batting": 85, "bowling": 10, "fielding": 82, "role": "wicket_keeper", "style": "left_hand"},
+    "SuryakumarYadav": {"batting": 90, "bowling": 20, "fielding": 87, "role": "batsman", "style": "right_hand"},
+    "YuzvendraChahal": {"batting": 25, "bowling": 86, "fielding": 70, "role": "bowler", "style": "spin"},
+    "RavichandranAshwin": {"batting": 55, "bowling": 90, "fielding": 78, "role": "all_rounder", "style": "spin"},
+
     # Australian Players
-    "Steve Smith": {"batting": 93, "bowling": 30, "fielding": 88, "role": "batsman", "style": "right_hand"},
-    "David Warner": {"batting": 91, "bowling": 15, "fielding": 84, "role": "batsman", "style": "left_hand"},
-    "Pat Cummins": {"batting": 40, "bowling": 95, "fielding": 82, "role": "bowler", "style": "fast"},
-    "Glenn Maxwell": {"batting": 84, "bowling": 75, "fielding": 90, "role": "all_rounder", "style": "right_hand"},
-    "Mitchell Starc": {"batting": 35, "bowling": 94, "fielding": 78, "role": "bowler", "style": "fast"},
-    "Josh Hazlewood": {"batting": 28, "bowling": 91, "fielding": 76, "role": "bowler", "style": "fast"},
-    "Adam Zampa": {"batting": 22, "bowling": 84, "fielding": 72, "role": "bowler", "style": "spin"},
-    "Travis Head": {"batting": 86, "bowling": 35, "fielding": 83, "role": "batsman", "style": "left_hand"},
-    "Marcus Stoinis": {"batting": 80, "bowling": 72, "fielding": 85, "role": "all_rounder", "style": "right_hand"},
-    "Alex Carey": {"batting": 78, "bowling": 10, "fielding": 88, "role": "wicket_keeper", "style": "left_hand"},
+    "SteveSmith": {"batting": 93, "bowling": 30, "fielding": 88, "role": "batsman", "style": "right_hand"},
+    "DavidWarner": {"batting": 91, "bowling": 15, "fielding": 84, "role": "batsman", "style": "left_hand"},
+    "PatCummins": {"batting": 40, "bowling": 95, "fielding": 82, "role": "bowler", "style": "fast"},
+    "GlennMaxwell": {"batting": 84, "bowling": 75, "fielding": 90, "role": "all_rounder", "style": "right_hand"},
+    "MitchellStarc": {"batting": 35, "bowling": 94, "fielding": 78, "role": "bowler", "style": "fast"},
+    "JoshHazlewood": {"batting": 28, "bowling": 91, "fielding": 76, "role": "bowler", "style": "fast"},
+    "Ada Zampa": {"batting": 22, "bowling": 84, "fielding": 72, "role": "bowler", "style": "spin"},
+    "TravisHead": {"batting": 86, "bowling": 35, "fielding": 83, "role": "batsman", "style": "left_hand"},
+    "MarcusStoinis": {"batting": 80, "bowling": 72, "fielding": 85, "role": "all_rounder", "style": "right_hand"},
+    "AlexCarey": {"batting": 78, "bowling": 10, "fielding": 88, "role": "wicket_keeper", "style": "left_hand"},
     
     # English Players
-    "Joe Root": {"batting": 94, "bowling": 35, "fielding": 86, "role": "batsman", "style": "right_hand"},
-    "Ben Stokes": {"batting": 87, "bowling": 82, "fielding": 91, "role": "all_rounder", "style": "left_hand"},
-    "Jos Buttler": {"batting": 89, "bowling": 10, "fielding": 85, "role": "wicket_keeper", "style": "right_hand"},
-    "Jofra Archer": {"batting": 32, "bowling": 93, "fielding": 80, "role": "bowler", "style": "fast"},
-    "Mark Wood": {"batting": 28, "bowling": 89, "fielding": 75, "role": "bowler", "style": "fast"},
-    "Adil Rashid": {"batting": 30, "bowling": 85, "fielding": 74, "role": "bowler", "style": "spin"},
-    "Jonny Bairstow": {"batting": 86, "bowling": 15, "fielding": 83, "role": "batsman", "style": "right_hand"},
-    "Sam Curran": {"batting": 68, "bowling": 79, "fielding": 82, "role": "all_rounder", "style": "left_hand"},
-    "Moeen Ali": {"batting": 76, "bowling": 78, "fielding": 80, "role": "all_rounder", "style": "left_hand"},
+    "JoeRoot": {"batting": 94, "bowling": 35, "fielding": 86, "role": "batsman", "style": "right_hand"},
+    "BenStokes": {"batting": 87, "bowling": 82, "fielding": 91, "role": "all_rounder", "style": "left_hand"},
+    "JosButtler": {"batting": 89, "bowling": 10, "fielding": 85, "role": "wicket_keeper", "style": "right_hand"},
+    "JofrArcher": {"batting": 32, "bowling": 93, "fielding": 80, "role": "bowler", "style": "fast"},
+    "MarkWood": {"batting": 28, "bowling": 89, "fielding": 75, "role": "bowler", "style": "fast"},
+    "AdilRashid": {"batting": 30, "bowling": 85, "fielding": 74, "role": "bowler", "style": "spin"},
+    "JonnyBairstow": {"batting": 86, "bowling": 15, "fielding": 83, "role": "batsman", "style": "right_hand"},
+    "SamCurran": {"batting": 68, "bowling": 79, "fielding": 82, "role": "all_rounder", "style": "left_hand"},
+    "MoeenAli": {"batting": 76, "bowling": 78, "fielding": 80, "role": "all_rounder", "style": "left_hand"},
     
     # Pakistani Players
-    "Babar Azam": {"batting": 96, "bowling": 20, "fielding": 89, "role": "batsman", "style": "right_hand"},
-    "Shaheen Afridi": {"batting": 30, "bowling": 94, "fielding": 77, "role": "bowler", "style": "fast"},
-    "Mohammad Rizwan": {"batting": 87, "bowling": 10, "fielding": 90, "role": "wicket_keeper", "style": "right_hand"},
-    "Shadab Khan": {"batting": 65, "bowling": 81, "fielding": 88, "role": "all_rounder", "style": "spin"},
-    "Haris Rauf": {"batting": 25, "bowling": 88, "fielding": 73, "role": "bowler", "style": "fast"},
-    
+    "BabarAzam": {"batting": 96, "bowling": 20, "fielding": 89, "role": "batsman", "style": "right_hand"},
+    "ShaheenAfridi": {"batting": 30, "bowling": 94, "fielding": 77, "role": "bowler", "style": "fast"},
+    "MohammadRizwan": {"batting": 87, "bowling": 10, "fielding": 90, "role": "wicket_keeper", "style": "right_hand"},
+    "ShadabKhan": {"batting": 65, "bowling": 81, "fielding": 88, "role": "all_rounder", "style": "spin"},
+    "HarisRauf": {"batting": 25, "bowling": 88, "fielding": 73, "role": "bowler", "style": "fast"},
+
+    # Bangladesh Players
+    "ShakibAlHasan": {"batting": 82, "bowling": 85, "fielding": 83, "role": "all_rounder", "style": "spin"},
+    "MushfiqurRahim": {"batting": 79, "bowling": 10, "fielding": 81, "role": "wicket_keeper", "style": "right_hand"},
+    "TamimIqbal": {"batting": 81, "bowling": 15, "fielding": 76, "role": "batsman", "style": "left_hand"},
+    "MustafizurRahman": {"batting": 22, "bowling": 82, "fielding": 70, "role": "bowler", "style": "fast"},
+    "MehidyHasan": {"batting": 55, "bowling": 77, "fielding": 74, "role": "all_rounder", "style": "spin"},
+    "TaskinAhmed": {"batting": 24, "bowling": 78, "fielding": 71, "role": "bowler", "style": "fast"},
+    "LittonDas": {"batting": 76, "bowling": 10, "fielding": 79, "role": "wicket_keeper", "style": "right_hand"},
+    "Mahmudullah": {"batting": 74, "bowling": 65, "fielding": 77, "role": "all_rounder", "style": "right_hand"},
+
+# Afghanistan Players
+    "RashidKhan": {"batting": 60, "bowling": 92, "fielding": 85, "role": "all_rounder", "style": "spin"},
+    "MohammadNabi": {"batting": 72, "bowling": 80, "fielding": 81, "role": "all_rounder", "style": "spin"},
+    "MujeebUrRahman": {"batting": 20, "bowling": 83, "fielding": 73, "role": "bowler", "style": "spin"},
+    "RahmanullahGurbaz": {"batting": 78, "bowling": 10, "fielding": 80, "role": "wicket_keeper", "style": "right_hand"},
+    "NaveenulHaq": {"batting": 25, "bowling": 79, "fielding": 72, "role": "bowler", "style": "fast"},
+    "IbrahimZadran": {"batting": 74, "bowling": 15, "fielding": 76, "role": "batsman", "style": "right_hand"},
+    "FazalhaqFarooqi": {"batting": 20, "bowling": 81, "fielding": 70, "role": "bowler", "style": "fast"},
+
+# Ireland Players
+    "PaulStirling": {"batting": 80, "bowling": 45, "fielding": 78, "role": "batsman", "style": "right_hand"},
+    "AndrewBalbirnie": {"batting": 76, "bowling": 20, "fielding": 77, "role": "batsman", "style": "right_hand"},
+    "HarryTector": {"batting": 77, "bowling": 25, "fielding": 79, "role": "batsman", "style": "right_hand"},
+    "CurtisCampher": {"batting": 68, "bowling": 72, "fielding": 80, "role": "all_rounder", "style": "right_hand"},
+    "MarkAdair": {"batting": 52, "bowling": 76, "fielding": 75, "role": "all_rounder", "style": "fast"},
+    "JoshuaLittle": {"batting": 22, "bowling": 77, "fielding": 71, "role": "bowler", "style": "fast"},
+    "LorcanTucker": {"batting": 70, "bowling": 10, "fielding": 78, "role": "wicket_keeper", "style": "right_hand"},
+
+# Zimbabwe Players
+    "SikandarRaza": {"batting": 78, "bowling": 74, "fielding": 79, "role": "all_rounder", "style": "spin"},
+    "SeanWilliams": {"batting": 73, "bowling": 68, "fielding": 76, "role": "all_rounder", "style": "spin"},
+    "BlessingMuzarabani": {"batting": 20, "bowling": 75, "fielding": 70, "role": "bowler", "style": "fast"},
+    "RegisChakabva": {"batting": 69, "bowling": 10, "fielding": 77, "role": "wicket_keeper", "style": "right_hand"},
+    "CraigErvine": {"batting": 74, "bowling": 30, "fielding": 75, "role": "batsman", "style": "left_hand"},
+    "RichardNgarava": {"batting": 24, "bowling": 73, "fielding": 69, "role": "bowler", "style": "fast"}
     # More players (add the ones I provided earlier here)
 }
 
