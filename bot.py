@@ -604,10 +604,10 @@ embed.set_footer(text="Use !help <command> for detailed info on any command")
 await ctx.send(embed=embed)
 @bot.command(name='teamadd')
 async def teamadd(ctx, team_name: str, *players):
-"""Add a new team with player validation"""
-if len(players) != 11:
-await ctx.send(f"❌ Error: You must provide exactly 11 players. You provided {len(players)}.")
-return
+    """Add a new team with player validation"""
+    if len(players) != 11:
+    await ctx.send(f"❌ Error: You must provide exactly 11 players. You provided {len(players)}.")
+    return
 # Validate and match player names
 validated_players = []
 suggestions = []
@@ -680,10 +680,10 @@ embed.set_footer(text=f"Created by {ctx.author.name}")
 await ctx.send(embed=embed)
 @bot.command(name='teams')
 async def teams(ctx):
-"""Show all registered teams"""
-if not teams_data:
-await ctx.send("❌ No teams registered yet! Use !teamadd to create a team.")
-return
+    """Show all registered teams"""
+    if not teams_data:
+    await ctx.send("❌ No teams registered yet! Use !teamadd to create a team.")
+    return
 embed = discord.Embed(
     title="🏏 Registered Teams",
     description=f"Total Teams: {len(teams_data)}",
@@ -707,10 +707,10 @@ for team_name, team_info in sorted(teams_data.items(), key=lambda x: x[1].get('o
 await ctx.send(embed=embed)
 @bot.command(name='sim')
 async def simulate_match(ctx, team1_name: str, team2_name: str):
-"""Simulate a match with over-by-over updates"""
-if team1_name not in teams_data or team2_name not in teams_data:
-await ctx.send(f"❌ One or both teams not found! Use !teams to see registered teams.")
-return
+    """Simulate a match with over-by-over updates"""
+    if team1_name not in teams_data or team2_name not in teams_data:
+    await ctx.send(f"❌ One or both teams not found! Use !teams to see registered teams.")
+    return
 await ctx.send(f"🏏 **Preparing match: {team1_name} vs {team2_name}**")
 
 # Random conditions
@@ -921,17 +921,17 @@ embed.set_footer(text=f"Match completed at {datetime.now().strftime('%H:%M')}")
 await ctx.send(embed=embed)
 @bot.command(name='player')
 async def player_profile(ctx, *, player_name: str):
-"""Show player profile and stats"""
-# Try exact match first
-if player_name not in PLAYER_DATABASE:
-# Try fuzzy match
-similar = find_similar_player(player_name, threshold=0.6)
-if similar:
-player_name = similar[0]
-await ctx.send(f"📝 Showing stats for {player_name} (closest match)")
-else:
-await ctx.send(f"❌ Player '{player_name}' not found! Use !players to see all players.")
-return
+    """Show player profile and stats"""
+    # Try exact match first
+    if player_name not in PLAYER_DATABASE:
+    # Try fuzzy match
+    similar = find_similar_player(player_name, threshold=0.6)
+    if similar:
+    player_name = similar[0]
+    await ctx.send(f"📝 Showing stats for {player_name} (closest match)")
+    else:
+    await ctx.send(f"❌ Player '{player_name}' not found! Use !players to see all players.")
+    return
 player_data = PLAYER_DATABASE[player_name]
 stats = player_stats.get(player_name, {})
 
@@ -980,13 +980,13 @@ embed.add_field(name="⭐ Overall Rating", value=f"**{overall:.1f}**/100", inlin
 await ctx.send(embed=embed)
 @bot.command(name='players')
 async def list_players(ctx, *, search: str = None):
-"""List all players or search by name"""
-if search:
-# Search for players
-matching_players = [p for p in PLAYER_DATABASE.keys() if search.lower() in p.lower()]
-if not matching_players:
-        await ctx.send(f"❌ No players found matching '{search}'")
-        return
+    """List all players or search by name"""
+    if search:
+    # Search for players
+    matching_players = [p for p in PLAYER_DATABASE.keys() if search.lower() in p.lower()]
+    if not matching_players:
+    await ctx.send(f"❌ No players found matching '{search}'")
+    return
     
     embed = discord.Embed(
         title=f"🔍 Search Results for '{search}'",
@@ -1030,11 +1030,11 @@ else:
 
 await ctx.send(embed=embed)
 @bot.command(name='lb')
-async def leaderboard(ctx, category: str = "runs"):
-"""Show leaderboards"""
-if not player_stats:
-await ctx.send("❌ No statistics available yet! Play some matches first.")
-return
+    async def leaderboard(ctx, category: str = "runs"):
+    """Show leaderboards"""
+    if not player_stats:
+    await ctx.send("❌ No statistics available yet! Play some matches first.")
+    return
 category = category.lower()
 
 if category == "runs":
@@ -1105,10 +1105,10 @@ else:
 await ctx.send(embed=embed)
 @bot.command(name='history')
 async def match_history_cmd(ctx, limit: int = 10):
-"""Show recent match history"""
-if not match_history.get('matches'):
-await ctx.send("❌ No match history available yet!")
-return
+    """Show recent match history"""
+    if not match_history.get('matches'):
+    await ctx.send("❌ No match history available yet!")
+    return
 limit = min(limit, 20)  # Max 20 matches
 matches = match_history['matches'][:limit]
 
@@ -1133,10 +1133,10 @@ for i, match in enumerate(matches, 1):
 await ctx.send(embed=embed)
 @bot.command(name='teamstats')
 async def team_stats(ctx, *, team_name: str):
-"""View team statistics"""
-if team_name not in teams_data:
-await ctx.send(f"❌ Team '{team_name}' not found! Use !teams to see all teams.")
-return
+    """View team statistics"""
+    if team_name not in teams_data:
+    await ctx.send(f"❌ Team '{team_name}' not found! Use !teams to see all teams.")
+    return
 team = teams_data[team_name]
 
 embed = discord.Embed(
@@ -1203,10 +1203,10 @@ embed.set_footer(text=f"Created by {team['created_by']} on {created_date}")
 await ctx.send(embed=embed)
 @bot.command(name='wcsetup')
 async def worldcup_setup(ctx):
-"""Setup World Cup tournament"""
-if len(teams_data) < 4:
-await ctx.send("❌ Need at least 4 teams for World Cup! Create more teams first.")
-return
+    """Setup World Cup tournament"""
+    if len(teams_data) < 4:
+    await ctx.send("❌ Need at least 4 teams for World Cup! Create more teams first.")
+    return
 # Initialize World Cup
 participating_teams = list(teams_data.keys())[:8]  # Max 8 teams
 
@@ -1245,11 +1245,11 @@ embed.set_footer(text="Use !wcmatch <team1> <team2> to play league matches")
 await ctx.send(embed=embed)
 @bot.command(name='wcmatch')
 async def worldcup_match(ctx, team1_name: str, team2_name: str):
-"""Play a World Cup match"""
-if 'teams' not in worldcup_data or not worldcup_data.get('teams'):
-await ctx.send("❌ World Cup not setup! Use !wcsetup first.")
-return
-if team1_name not in worldcup_data['teams'] or team2_name not in worldcup_data['teams']:
+    """Play a World Cup match"""
+    if 'teams' not in worldcup_data or not worldcup_data.get('teams'):
+    await ctx.send("❌ World Cup not setup! Use !wcsetup first.")
+    return
+    if team1_name not in worldcup_data['teams'] or team2_name not in worldcup_data['teams']:
     await ctx.send("❌ One or both teams not in World Cup!")
     return
 
@@ -1311,11 +1311,11 @@ finalist2 = sorted_teams[1][0]
 await ctx.send(f"🏆 **WORLD CUP FINAL**\n{finalist1} vs {finalist2}\n\nUse `!sim {finalist1} {finalist2}` to play the final!")
 @bot.command(name='quicksim')
 async def quick_sim(ctx, team1_name: str, team2_name: str):
-"""Quick simulation without over-by-over updates"""
-if team1_name not in teams_data or team2_name not in teams_data:
-await ctx.send(f"❌ One or both teams not found!")
-return
-await ctx.send(f"⚡ **Quick Match: {team1_name} vs {team2_name}**")
+    """Quick simulation without over-by-over updates"""
+    if team1_name not in teams_data or team2_name not in teams_data:
+    await ctx.send(f"❌ One or both teams not found!")
+    return
+    await ctx.send(f"⚡ **Quick Match: {team1_name} vs {team2_name}**")
 
 # Simulate quickly
 pitch_name = random.choice(list(PITCH_CONDITIONS.keys()))
@@ -1362,13 +1362,13 @@ update_player_stats(team2_innings)
 await show_final_scorecard(ctx, team1_innings, team2_innings, pitch_name, weather_name, winner)
 @bot.command(name='teamdelete')
 async def team_delete(ctx, *, team_name: str):
-"""Delete a team"""
-if team_name not in teams_data:
-await ctx.send(f"❌ Team '{team_name}' not found!")
-return
-# Check if user created the team or is admin
-team = teams_data[team_name]
-if str(ctx.author) != team['created_by'] and not ctx.author.guild_permissions.administrator:
+    """Delete a team"""
+    if team_name not in teams_data:
+    await ctx.send(f"❌ Team '{team_name}' not found!")
+    return
+    # Check if user created the team or is admin
+    team = teams_data[team_name]
+    if str(ctx.author) != team['created_by'] and not ctx.author.guild_permissions.administrator:
     await ctx.send("❌ You can only delete teams you created!")
     return
 
