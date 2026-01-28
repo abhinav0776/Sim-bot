@@ -1742,8 +1742,7 @@ async def simulate_match(ctx, team1_name: str, team2_name: str):
     
     # Send raw stats for adding to leaderboard
     raw_stats = create_raw_stats(final_team1, final_team2, winner, pitch_name, weather_name)
-    stats_msg = await ctx.send(f"```json\n{json.dumps(raw_stats, indent=2)}\n```\n*Reply to this message with `!addstats` to add to leaderboard*")
-
+    await ctx.send(f"```json\n{json.dumps(raw_stats, indent=2)}\n```\n*Reply to this message with `!addstats` to add to leaderboard*")
 @bot.command(name='simlive')
 async def simulate_match_live(ctx, team1_name: str, team2_name: str):
     """Simulate a match with FULL over-by-over commentary"""
