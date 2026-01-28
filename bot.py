@@ -1417,7 +1417,7 @@ async def standings(ctx):
     """Show team standings/leaderboard"""
     if not teams_data:
         await ctx.send("❌ No teams registered yet!")
-                return
+        return
     
     # Sort teams by wins, then by overall rating
     sorted_teams = sorted(
