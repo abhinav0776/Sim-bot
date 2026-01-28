@@ -384,19 +384,17 @@ async def help_cricket(ctx):
         value="**!teamadd <name> <p1> ... <p11>** - Create team\n**!teams** - Show all teams\n**!teamdelete <name>** - Delete team",
         inline=False
     )
-    
-    embed.add_field(
-        name="🎮 Match Simulation",
-        value="**!sim <team1> <team2>** - Simulate match\n**!quicksim <team1> <team2>** - Quick simulation",
-        inline=False
-    )
-    
     embed.add_field(
         name="👤 Player Info",
         value="**!player <name>** - View player profile\n**!players** - List all players",
         inline=False
     )
-    
+
+    embed.add_field(
+        name="🎮 Match Simulation",
+        value="**!sim <team1> <team2>** - Quick simulation with key moments\n**!simlive <team1> <team2>** - Detailed over-by-over simulation\n**!quicksim <team1> <team2>** - Instant result",
+        inline=False
+    )
     await ctx.send(embed=embed)
 
 @bot.command(name='teamadd')
@@ -848,6 +846,135 @@ async def simulate_match(ctx, team1_name: str, team2_name: str):
     )
     
     # Update button labels with actual team names
+    view.children[1].label = f"🏏 {final_team1['team']} Batting"
+    view.children[2].label = f"⚾ {final_team1['team']} Bowling"
+    view.children[3].label = f"🏏 {final_team2['team']} Batting"
+    view.children[4].label = f"⚾ {final_team2['team']} Bowling"
+    
+    await ctx.send(
+        "**🏏 Match Complete! Use buttons below to view detailed scorecards:**",
+        embed=summary_embed,
+        view=view
+    )
+
+
+@bot.command(name='simlive')
+async def simulate_match_live(ctx, team1_name: str, team2_name: str):
+    """Simulate a match with FULL over-by-over commentary"""
+    if team1_name not in teams_data or team2_name not in teams_data:
+        await ctx.send(f"❌ One or both teams not found!")
+        return
+    
+    await ctx.send(f"🏏 **LIVE MATCH: {team1_name} vs {team2_name}**")
+    await ctx.send("⚠️ This will show detailed over-by-over updates!")
+    
+    # Same setup as original sim
+    pitch_name = random.choice(list(PITCH_CONDITIONS.keys()))
+    weather_name = random.choice(list(WEATHER_CONDITIONS.keys()))
+    pitch = PITCH_CONDITIONS[pitch_name]
+    weather = WEATHER_CONDITIONS[weather_name]
+    
+    # Conditions
+    conditions_embed = discord.Embed(title="🏏 Match Conditions", color=0x00ff88)
+    conditions_embed.add_field(name="🌱 Pitch", value=f"{pitch_name}\n_{pitch['description']}_", inline=True)
+    conditions_embed.add_field(name="🌤 Weather", value=f"{weather_name}\n_{weather['description']}_", inline=True)
+    await ctx.send(embed=conditions_embed)
+    await asyncio.sleep(2)
+    
+    # Toss
+    toss_winner = random.choice([team1_name, team2_name])
+    choice = random.choice(['bat', 'bowl'])
+    await ctx.send(f"🪙 **{toss_winner}** won the toss and chose to **{choice}**")
+    await asyncio.sleep(2)
+    
+    # Determine batting order
+    if (toss_winner == team1_name and choice == 'bat') or (toss_winner == team2_name and choice == 'bowl'):
+        first_bat_name, first_bat_squad = team1_name, teams_data[team1_name]['squad']
+        second_bat_name, second_bat_squad = team2_name, teams_data[team2_name]['squad']
+    else:
+        first_bat_name, first_bat_squad = team2_name, teams_data[team2_name]['squad']
+        second_bat_name, second_bat_squad = team1_name, teams_data[team1_name]['squad']
+    
+    # First Innings - DETAILED
+    await ctx.send(f"\n**🏏 FIRST INNINGS: {first_bat_name}**")
+    team1_innings = simulate_innings_detailed(first_bat_name, first_bat_squad, second_bat_squad, pitch, weather)
+    
+    # Show every 3rd over
+    for over_data in team1_innings['over_by_over'][::3]:
+        over_msg = f"**{over_data['summary']}**"
+        if over_data['commentary']:
+            over_msg += "\n" + "\n".join(over_data['commentary'][:2])
+        await ctx.send(over_msg)
+        await asyncio.sleep(1)
+    
+    innings_summary = f"\n**📊 {first_bat_name} Innings Summary**\n"
+    innings_summary += f"**Score: {team1_innings['total']}/{team1_innings['wickets']} ({team1_innings['overs']} overs)**"
+    await ctx.send(innings_summary)
+    
+    team1_batsmen = [(p, s) for p, s in team1_innings['batsmen'].items() if s['balls'] > 0]
+    if team1_batsmen:
+        top_bat = max(team1_batsmen, key=lambda x: x[1]['runs'])
+        await ctx.send(f"⭐ Top Scorer: **{top_bat[0]}** - {top_bat[1]['runs']}({top_bat[1]['balls']})")
+    
+    await asyncio.sleep(2)
+    
+    # Second Innings - DETAILED
+    target = team1_innings['total']
+    await ctx.send(f"\n**🎯 TARGET: {target + 1} runs**")
+    await ctx.send(f"**🏏 SECOND INNINGS: {second_bat_name}**")
+    
+    team2_innings = simulate_innings_detailed(second_bat_name, second_bat_squad, first_bat_squad, pitch, weather, target)
+    
+    # Show every 3rd over with win probability
+    for over_data in team2_innings['over_by_over'][::3]:
+        overs_remaining = 20 - over_data['over']
+        win_prob = calculate_win_probability(
+            target, 0,
+            over_data['total'], over_data['wickets'],
+            overs_remaining
+        )
+        
+        over_msg = f"**{over_data['summary']}**\n"
+        over_msg += f"📊 Win Probability: **{win_prob:.1f}%**"
+        
+        if over_data['commentary']:
+            over_msg += "\n" + "\n".join(over_data['commentary'][:2])
+        
+        await ctx.send(over_msg)
+        await asyncio.sleep(1)
+    
+    # Determine winner (rest of the code same as original)
+    if first_bat_name == team1_name:
+        final_team1 = team1_innings
+        final_team2 = team2_innings
+    else:
+        final_team1 = team2_innings
+        final_team2 = team1_innings
+    
+    if final_team1['total'] > final_team2['total']:
+        winner = team1_name
+        teams_data[team1_name]['wins'] = teams_data[team1_name].get('wins', 0) + 1
+    elif final_team2['total'] > final_team1['total']:
+        winner = team2_name
+        teams_data[team2_name]['wins'] = teams_data[team2_name].get('wins', 0) + 1
+    else:
+        team1_overall = teams_data[team1_name]['overall']
+        team2_overall = teams_data[team2_name]['overall']
+        winner = team1_name if team1_overall > team2_overall else team2_name
+    
+    teams_data[team1_name]['matches_played'] = teams_data[team1_name].get('matches_played', 0) + 1
+    teams_data[team2_name]['matches_played'] = teams_data[team2_name].get('matches_played', 0) + 1
+    save_data(TEAMS_FILE, teams_data)
+    
+    # Final scorecard with buttons (same as before)
+    summary_embed = create_match_summary(
+        final_team1, final_team2, winner, pitch_name, weather_name
+    )
+    
+    view = ScorecardView(
+        final_team1, final_team2, winner, pitch_name, weather_name
+    )
+    
     view.children[1].label = f"🏏 {final_team1['team']} Batting"
     view.children[2].label = f"⚾ {final_team1['team']} Bowling"
     view.children[3].label = f"🏏 {final_team2['team']} Batting"
