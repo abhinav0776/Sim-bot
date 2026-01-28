@@ -172,6 +172,8 @@ def validate_squad(squad):
 # Data Files
 TEAMS_FILE = 'teams.json'
 STATS_FILE = 'stats.json'
+FIXTURES_FILE = 'fixtures.json'
+RESULT_CHANNEL_FILE = 'result_channel.json'
 
 def load_data(filename):
     if os.path.exists(filename):
@@ -185,6 +187,14 @@ def save_data(filename, data):
 
 teams_data = load_data(TEAMS_FILE)
 player_stats = load_data(STATS_FILE)
+fixtures_data = load_data(FIXTURES_FILE)
+result_channels = load_data(RESULT_CHANNEL_FILE)
+
+# Initialize fixtures structure
+if 'fixtures' not in fixtures_data:
+    fixtures_data['fixtures'] = []
+if 'completed' not in fixtures_data:
+    fixtures_data['completed'] = []
 
 # Pitch and Weather
 PITCH_CONDITIONS = {
@@ -361,7 +371,411 @@ class ScorecardView(discord.ui.View):
         # Disable all buttons when view times out
         for item in self.children:
             item.disabled = True
-
+class LiveMatchView(discord.ui.View):
+    def __init__(self, ctx, first_bat_name, first_bat_squad, second_bat_name, second_bat_squad, 
+                 pitch, weather, pitch_name, weather_name, team1_name, team2_name):
+        super().__init__(timeout=300)  # 5 minutes timeout
+        self.ctx = ctx
+        self.first_bat_name = first_bat_name
+        self.first_bat_squad = first_bat_squad
+        self.second_bat_name = second_bat_name
+        self.second_bat_squad = second_bat_squad
+        self.pitch = pitch
+        self.weather = weather
+        self.pitch_name = pitch_name
+        self.weather_name = weather_name
+        self.team1_name = team1_name
+        self.team2_name = team2_name
+        
+        # Match state
+        self.innings = 1
+        self.current_over = 0
+        self.team1_innings = None
+        self.team2_innings = None
+        self.message = None
+        
+    async def start_match(self):
+        """Initialize and start the match"""
+        embed = discord.Embed(
+            title=f"🏏 {self.first_bat_name} vs {self.second_bat_name}",
+            description=f"**First Innings: {self.first_bat_name}**\nPress 'Next Over' to start!",
+            color=0x00ff00
+        )
+        embed.add_field(name="🌱 Pitch", value=self.pitch_name, inline=True)
+        embed.add_field(name="🌤 Weather", value=self.weather_name, inline=True)
+        embed.add_field(name="Score", value="0/0 (0.0 overs)", inline=False)
+        
+        self.message = await self.ctx.send(embed=embed, view=self)
+    
+    @discord.ui.button(label="⏭️ Next Over", style=discord.ButtonStyle.primary)
+    async def next_over_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        
+        if self.innings == 1:
+            await self.simulate_first_innings_over()
+        else:
+            await self.simulate_second_innings_over()
+    
+    @discord.ui.button(label="⏩ Simulate All", style=discord.ButtonStyle.secondary)
+    async def simulate_all_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        
+        if self.innings == 1:
+            # Finish first innings
+            while self.current_over < 20 and (not self.team1_innings or self.team1_innings['wickets'] < 10):
+                await self.simulate_first_innings_over()
+                await asyncio.sleep(0.5)
+        else:
+            # Finish second innings
+            target = self.team1_innings['total']
+            while (self.current_over < 20 and self.team2_innings['wickets'] < 10 
+                   and self.team2_innings['total'] <= target):
+                await self.simulate_second_innings_over()
+                await asyncio.sleep(0.5)
+    
+    @discord.ui.button(label="📊 Scorecard", style=discord.ButtonStyle.success)
+    async def scorecard_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.innings == 1 and self.team1_innings:
+            embed = self.create_mini_scorecard(self.team1_innings, "First Innings")
+        elif self.innings == 2 and self.team2_innings:
+            embed = self.create_mini_scorecard(self.team2_innings, "Second Innings", 
+                                               self.team1_innings['total'])
+        else:
+            embed = discord.Embed(title="No data yet", color=0xff0000)
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    async def simulate_first_innings_over(self):
+        """Simulate one over of first innings"""
+        if self.current_over == 0:
+            # Initialize innings
+            self.team1_innings = self.init_innings(self.first_bat_name, self.first_bat_squad)
+        
+        if self.current_over >= 20 or self.team1_innings['wickets'] >= 10:
+            await self.end_first_innings()
+            return
+        
+        # Simulate the over
+        over_data = self.simulate_one_over(
+            self.team1_innings, 
+            self.first_bat_squad,
+            self.second_bat_squad
+        )
+        
+        self.current_over += 1
+        
+        # Update display
+        embed = self.create_over_embed(over_data, self.team1_innings, 1)
+        await self.message.edit(embed=embed, view=self)
+        
+        # Check if innings ended
+        if self.current_over >= 20 or self.team1_innings['wickets'] >= 10:
+            await asyncio.sleep(2)
+            await self.end_first_innings()
+    
+    async def simulate_second_innings_over(self):
+        """Simulate one over of second innings"""
+        if self.current_over == 0:
+            # Initialize second innings
+            self.team2_innings = self.init_innings(self.second_bat_name, self.second_bat_squad)
+        
+        target = self.team1_innings['total']
+        
+        if (self.current_over >= 20 or self.team2_innings['wickets'] >= 10 
+            or self.team2_innings['total'] > target):
+            await self.end_match()
+            return
+        
+        # Simulate the over
+        over_data = self.simulate_one_over(
+            self.team2_innings,
+            self.second_bat_squad,
+            self.first_bat_squad,
+            target
+        )
+        
+        self.current_over += 1
+        
+        # Update display
+        embed = self.create_over_embed(over_data, self.team2_innings, 2, target)
+        await self.message.edit(embed=embed, view=self)
+        
+        # Check if innings/match ended
+        if (self.current_over >= 20 or self.team2_innings['wickets'] >= 10 
+            or self.team2_innings['total'] > target):
+            await asyncio.sleep(2)
+            await self.end_match()
+    
+    def init_innings(self, team_name, squad):
+        """Initialize innings data structure"""
+        batting_order = squad[:11]
+        batsman_scores = {}
+        for batsman in batting_order:
+            batsman_scores[batsman] = {
+                'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0, 
+                'out': False, 'strike_rate': 0.0
+            }
+        
+        return {
+            'team': team_name,
+            'total': 0,
+            'wickets': 0,
+            'overs': 0,
+            'batsmen': batsman_scores,
+            'current_batsmen': [batting_order[0], batting_order[1]],
+            'next_batsman_index': 2,
+            'batting_order': batting_order
+        }
+    
+    def simulate_one_over(self, innings, batting_squad, bowling_squad, target=None):
+        """Simulate one complete over"""
+        bowlers = get_bowlers(bowling_squad)
+        current_bowler = bowlers[self.current_over % len(bowlers)]
+        
+        over_runs = 0
+        over_events = []
+        balls_in_over = 0
+        
+        while balls_in_over < 6 and innings['wickets'] < 10:
+            if target and innings['total'] > target:
+                break
+            
+            striker = innings['current_batsmen'][0]
+            outcome = simulate_ball(striker, current_bowler, self.pitch, self.weather)
+            
+            if outcome == 'W':
+                innings['wickets'] += 1
+                innings['batsmen'][striker]['out'] = True
+                over_events.append(f"🔴 WICKET! {striker} OUT")
+                
+                # New batsman
+                if innings['next_batsman_index'] < len(innings['batting_order']):
+                    new_batsman = innings['batting_order'][innings['next_batsman_index']]
+                    innings['current_batsmen'][0] = new_batsman
+                    innings['next_batsman_index'] += 1
+                    over_events.append(f"▶️ {new_batsman} comes to bat")
+            else:
+                runs = int(outcome)
+                innings['total'] += runs
+                over_runs += runs
+                innings['batsmen'][striker]['runs'] += runs
+                innings['batsmen'][striker]['balls'] += 1
+                
+                if runs == 4:
+                    innings['batsmen'][striker]['fours'] += 1
+                    over_events.append(f"🔵 FOUR by {striker}")
+                elif runs == 6:
+                    innings['batsmen'][striker]['sixes'] += 1
+                    over_events.append(f"🟢 SIX by {striker}!")
+                elif runs > 0:
+                    over_events.append(f"{runs} run(s)")
+                
+                # Rotate strike on odd runs
+                if runs % 2 == 1:
+                    innings['current_batsmen'][0], innings['current_batsmen'][1] = \
+                        innings['current_batsmen'][1], innings['current_batsmen'][0]
+            
+            balls_in_over += 1
+        
+        innings['overs'] = self.current_over + 1
+        
+        # Rotate strike at end of over
+        innings['current_batsmen'][0], innings['current_batsmen'][1] = \
+            innings['current_batsmen'][1], innings['current_batsmen'][0]
+        
+        # Update strike rates
+        for batsman, stats in innings['batsmen'].items():
+            if stats['balls'] > 0:
+                stats['strike_rate'] = (stats['runs'] / stats['balls']) * 100
+        
+        return {
+            'over_number': self.current_over + 1,
+            'runs': over_runs,
+            'bowler': current_bowler,
+            'events': over_events
+        }
+    
+    def create_over_embed(self, over_data, innings, innings_num, target=None):
+        """Create embed for over summary"""
+        if innings_num == 1:
+            title = f"🏏 First Innings - {innings['team']}"
+            color = 0x00ff00
+        else:
+            title = f"🏏 Second Innings - {innings['team']}"
+            color = 0x00aaff
+        
+        embed = discord.Embed(title=title, color=color)
+        
+        # Over summary
+        over_summary = f"**Over {over_data['over_number']}: {over_data['runs']} runs**\n"
+        over_summary += f"Bowler: {over_data['bowler']}\n\n"
+        
+        # Events (max 4 lines)
+        if over_data['events']:
+            over_summary += "**Events:**\n"
+            for event in over_data['events'][:4]:
+                over_summary += f"• {event}\n"
+        
+        embed.description = over_summary
+        
+        # Current score
+        score_text = f"**{innings['total']}/{innings['wickets']}** ({innings['overs']} overs)"
+        embed.add_field(name="📊 Score", value=score_text, inline=True)
+        
+        # Target info for second innings
+        if target is not None:
+            runs_needed = target - innings['total'] + 1
+            balls_left = (20 - innings['overs']) * 6
+            
+            if runs_needed > 0:
+                rrr = (runs_needed / ((20 - innings['overs']) if innings['overs'] < 20 else 1)) if innings['overs'] < 20 else 0
+                target_text = f"Need **{runs_needed}** from **{balls_left}** balls\nRRR: {rrr:.2f}"
+            else:
+                target_text = f"🏆 **TARGET ACHIEVED!**"
+            
+            embed.add_field(name="🎯 Target", value=target_text, inline=True)
+        
+        # Current batsmen
+        batsmen_text = ""
+        for i, batsman in enumerate(innings['current_batsmen'][:2]):
+            if batsman in innings['batsmen']:
+                stats = innings['batsmen'][batsman]
+                if not stats['out']:
+                    striker = "*" if i == 0 else ""
+                    batsmen_text += f"{striker}{batsman}: **{stats['runs']}({stats['balls']})**\n"
+        
+        if batsmen_text:
+            embed.add_field(name="🏏 At Crease", value=batsmen_text, inline=False)
+        
+        return embed
+    
+    def create_mini_scorecard(self, innings, title, target=None):
+        """Create mini scorecard embed"""
+        embed = discord.Embed(title=f"📊 {title} - {innings['team']}", color=0xffd700)
+        
+        # Top 5 batsmen
+        batsmen_list = [(p, s) for p, s in innings['batsmen'].items() if s['balls'] > 0]
+        batsmen_list.sort(key=lambda x: x[1]['runs'], reverse=True)
+        
+        bat_text = "```\n"
+        bat_text += f"{'Player':<15} {'R(B)':<10} {'SR':<6}\n"
+        bat_text += "-" * 35 + "\n"
+        
+        for player, stats in batsmen_list[:5]:
+            out = "*" if stats['out'] else ""
+            bat_text += f"{player[:14]:<15} {stats['runs']}({stats['balls']}) {out:<10} {stats['strike_rate']:.0f}\n"
+        
+        bat_text += "```"
+        embed.add_field(name="Batting", value=bat_text, inline=False)
+        
+        score = f"**{innings['total']}/{innings['wickets']}** ({innings['overs']} overs)"
+        if target:
+            score += f"\nTarget: {target + 1}"
+        embed.add_field(name="Score", value=score, inline=False)
+        
+        return embed
+    
+    async def end_first_innings(self):
+        """End first innings and start second"""
+        embed = discord.Embed(
+            title=f"📊 End of First Innings",
+            description=f"**{self.first_bat_name}: {self.team1_innings['total']}/{self.team1_innings['wickets']}** ({self.team1_innings['overs']} overs)",
+            color=0xffd700
+        )
+        
+        # Top scorer
+        batsmen_list = [(p, s) for p, s in self.team1_innings['batsmen'].items() if s['balls'] > 0]
+        if batsmen_list:
+            top_bat = max(batsmen_list, key=lambda x: x[1]['runs'])
+            embed.add_field(
+                name="⭐ Top Scorer",
+                value=f"**{top_bat[0]}** - {top_bat[1]['runs']}({top_bat[1]['balls']})",
+                inline=False
+            )
+        
+        target = self.team1_innings['total']
+        embed.add_field(
+            name="🎯 Target",
+            value=f"**{self.second_bat_name}** needs **{target + 1}** runs to win",
+            inline=False
+        )
+        
+        await self.message.edit(embed=embed, view=self)
+        
+        # Reset for second innings
+        self.innings = 2
+        self.current_over = 0
+        
+        await asyncio.sleep(3)
+        
+        # Start second innings display
+        embed = discord.Embed(
+            title=f"🏏 Second Innings - {self.second_bat_name}",
+            description=f"**Target: {target + 1} runs**\nPress 'Next Over' to continue!",
+            color=0x00aaff
+        )
+        embed.add_field(name="Score", value="0/0 (0.0 overs)", inline=False)
+        
+        await self.message.edit(embed=embed, view=self)
+    
+    async def end_match(self):
+        """End match and show final result"""
+        # Disable all buttons
+        for item in self.children:
+            item.disabled = True
+        
+        # Determine winner
+        if self.team1_innings['total'] > self.team2_innings['total']:
+            winner = self.team1_name
+            margin = self.team1_innings['total'] - self.team2_innings['total']
+            result = f"🏆 **{winner}** won by **{margin} runs**"
+        elif self.team2_innings['total'] > self.team1_innings['total']:
+            winner = self.team2_name
+            wickets_rem = 10 - self.team2_innings['wickets']
+            result = f"🏆 **{winner}** won by **{wickets_rem} wickets**"
+        else:
+            winner = self.team1_name  # Tie goes to team1
+            result = f"🏆 **Match Tied! {winner}** wins on boundary count"
+        
+        # Update team stats
+        teams_data[self.team1_name]['matches_played'] = teams_data[self.team1_name].get('matches_played', 0) + 1
+        teams_data[self.team2_name]['matches_played'] = teams_data[self.team2_name].get('matches_played', 0) + 1
+        
+        if winner == self.team1_name:
+            teams_data[self.team1_name]['wins'] = teams_data[self.team1_name].get('wins', 0) + 1
+        else:
+            teams_data[self.team2_name]['wins'] = teams_data[self.team2_name].get('wins', 0) + 1
+        
+        save_data(TEAMS_FILE, teams_data)
+        
+        await self.message.edit(view=self)
+        
+        # Show final scorecard with buttons
+        if self.first_bat_name == self.team1_name:
+            final_team1 = self.team1_innings
+            final_team2 = self.team2_innings
+        else:
+            final_team1 = self.team2_innings
+            final_team2 = self.team1_innings
+        
+        summary_embed = create_match_summary(
+            final_team1, final_team2, winner, self.pitch_name, self.weather_name
+        )
+        
+        view = ScorecardView(
+            final_team1, final_team2, winner, self.pitch_name, self.weather_name
+        )
+        
+        view.children[1].label = f"🏏 {final_team1['team']} Batting"
+        view.children[2].label = f"⚾ {final_team1['team']} Bowling"
+        view.children[3].label = f"🏏 {final_team2['team']} Batting"
+        view.children[4].label = f"⚾ {final_team2['team']} Bowling"
+        
+        await self.ctx.send(
+            "**🏏 Match Complete! Use buttons below to view detailed scorecards:**",
+            embed=summary_embed,
+            view=view
+                     )
 
 # Bot Events
 @bot.event
@@ -381,20 +795,66 @@ async def help_cricket(ctx):
     
     embed.add_field(
         name="📋 Team Management",
-        value="**!teamadd <name> <p1> ... <p11>** - Create team\n**!teams** - Show all teams\n**!teamdelete <name>** - Delete team",
+        value=(
+            "**!teamadd <name> <p1> ... <p11>** - Create team\n"
+            "**!teams** - Show all teams\n"
+            "**!teamdelete <name>** - Delete team"
+        ),
         inline=False
     )
-    embed.add_field(
-        name="👤 Player Info",
-        value="**!player <name>** - View player profile\n**!players** - List all players",
-        inline=False
-    )
-
+    
     embed.add_field(
         name="🎮 Match Simulation",
-        value="**!sim <team1> <team2>** - Quick simulation with key moments\n**!simlive <team1> <team2>** - Detailed over-by-over simulation\n**!quicksim <team1> <team2>** - Instant result",
+        value=(
+            "**!sim <team1> <team2>** - Quick simulation\n"
+            "**!simlive <team1> <team2>** - Interactive over-by-over\n"
+            "**!quicksim <team1> <team2>** - Instant result"
+        ),
         inline=False
     )
+    
+    embed.add_field(
+        name="📊 Statistics & Leaderboards",
+        value=(
+            "**!addstats** - Add match stats (reply to stats msg)\n"
+            "**!standings** - Team rankings\n"
+            "**!lb [category]** - Player leaderboards\n"
+            "   Categories: `PURPLE_CAP`, `ORANGE_CAP`, `DUCK`, `ALL`"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📅 Fixtures & Results",
+        value=(
+            "**!fixtures add <t1> <t2> <date>** - Add fixture\n"
+            "**!fixtures list** - Show fixtures\n"
+            "**!fixtures remove <id>** - Remove fixture\n"
+            "**!result #channel** - Set result channel"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="👤 Player Info",
+        value=(
+            "**!player <name>** - View player profile\n"
+            "**!players** - List all players"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="ℹ️ Other",
+        value=(
+            "**!updates** - View bot updates\n"
+            "**!resetstats** - Reset all stats (Admin only)"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text="Use !updates to see latest features!")
+    
     await ctx.send(embed=embed)
 
 @bot.command(name='teamadd')
@@ -714,8 +1174,694 @@ def create_match_summary(team1_innings, team2_innings, winner, pitch_name, weath
     
     embed.add_field(name="Top Performers", value=performers_text, inline=False)
     embed.add_field(name="Conditions", value=f"🌱 {pitch_name} | 🌤 {weather_name}", inline=False)
+
+    def create_raw_stats(team1_innings, team2_innings, winner, pitch_name, weather_name):
+    """Create raw stats object for match"""
+    match_id = f"match_{int(datetime.now().timestamp())}"
     
+    # Get top performers
+    team1_batsmen = [(p, s) for p, s in team1_innings['batsmen'].items() if s['balls'] > 0]
+    team2_batsmen = [(p, s) for p, s in team2_innings['batsmen'].items() if s['balls'] > 0]
+    
+    top_bat_team1 = max(team1_batsmen, key=lambda x: x[1]['runs']) if team1_batsmen else (None, {'runs': 0})
+    top_bat_team2 = max(team2_batsmen, key=lambda x: x[1]['runs']) if team2_batsmen else (None, {'runs': 0})
+    
+    # Get best bowlers
+    team1_bowlers = [(b, s) for b, s in team1_innings['bowlers'].items() if s['overs'] > 0]
+    team2_bowlers = [(b, s) for b, s in team2_innings['bowlers'].items() if s['overs'] > 0]
+    
+    best_bowl_team1 = max(team1_bowlers, key=lambda x: x[1]['wickets']) if team1_bowlers else (None, {'wickets': 0})
+    best_bowl_team2 = max(team2_bowlers, key=lambda x: x[1]['wickets']) if team2_bowlers else (None, {'wickets': 0})
+    
+    return {
+        'match_id': match_id,
+        'date': datetime.now().isoformat(),
+        'teams': {
+            team1_innings['team']: {
+                'score': f"{team1_innings['total']}/{team1_innings['wickets']}",
+                'overs': team1_innings['overs'],
+                'batsmen': team1_innings['batsmen'],
+                'bowlers': team2_innings['bowlers']  # Opposition bowlers
+            },
+            team2_innings['team']: {
+                'score': f"{team2_innings['total']}/{team2_innings['wickets']}",
+                'overs': team2_innings['overs'],
+                'batsmen': team2_innings['batsmen'],
+                'bowlers': team1_innings['bowlers']  # Opposition bowlers
+            }
+        },
+        'winner': winner,
+        'conditions': {
+            'pitch': pitch_name,
+            'weather': weather_name
+        },
+        'top_performers': {
+            'highest_score': top_bat_team1[0] if top_bat_team1[1]['runs'] > top_bat_team2[1]['runs'] else top_bat_team2[0],
+            'highest_score_runs': max(top_bat_team1[1]['runs'], top_bat_team2[1]['runs']),
+            'best_bowling': best_bowl_team1[0] if best_bowl_team1[1]['wickets'] > best_bowl_team2[1]['wickets'] else best_bowl_team2[0],
+            'best_bowling_wickets': max(best_bowl_team1[1]['wickets'], best_bowl_team2[1]['wickets'])
+        }
+    }
+
+def update_player_stats(raw_stats):
+    """Update player statistics from raw match stats"""
+    for team_name, team_data in raw_stats['teams'].items():
+        # Update batting stats
+        for player, bat_stats in team_data['batsmen'].items():
+            if bat_stats['balls'] > 0:
+                if player not in player_stats:
+                    player_stats[player] = {
+                        'matches': 0,
+                        'runs': 0,
+                        'balls': 0,
+                        'highest_score': 0,
+                        'fifties': 0,
+                        'hundreds': 0,
+                        'fours': 0,
+                        'sixes': 0,
+                        'ducks': 0,
+                        'wickets': 0,
+                        'overs_bowled': 0,
+                        'runs_conceded': 0,
+                        'best_bowling': '0/0'
+                    }
+                
+                player_stats[player]['matches'] += 1
+                player_stats[player]['runs'] += bat_stats['runs']
+                player_stats[player]['balls'] += bat_stats['balls']
+                player_stats[player]['fours'] += bat_stats['fours']
+                player_stats[player]['sixes'] += bat_stats['sixes']
+                
+                if bat_stats['runs'] > player_stats[player]['highest_score']:
+                    player_stats[player]['highest_score'] = bat_stats['runs']
+                
+                if bat_stats['runs'] >= 100:
+                    player_stats[player]['hundreds'] += 1
+                elif bat_stats['runs'] >= 50:
+                    player_stats[player]['fifties'] += 1
+                
+                if bat_stats['runs'] == 0 and bat_stats['out']:
+                    player_stats[player]['ducks'] += 1
+        
+        # Update bowling stats
+        for bowler, bowl_stats in team_data['bowlers'].items():
+            if bowl_stats['overs'] > 0:
+                if bowler not in player_stats:
+                    player_stats[bowler] = {
+                        'matches': 0,
+                        'runs': 0,
+                        'balls': 0,
+                        'highest_score': 0,
+                        'fifties': 0,
+                        'hundreds': 0,
+                        'fours': 0,
+                        'sixes': 0,
+                        'ducks': 0,
+                        'wickets': 0,
+                        'overs_bowled': 0,
+                        'runs_conceded': 0,
+                        'best_bowling': '0/0'
+                    }
+                
+                player_stats[bowler]['wickets'] += bowl_stats['wickets']
+                player_stats[bowler]['overs_bowled'] += bowl_stats['overs']
+                player_stats[bowler]['runs_conceded'] += bowl_stats['runs']
+                
+                # Update best bowling
+                current_best = player_stats[bowler]['best_bowling'].split('/')
+                if bowl_stats['wickets'] > int(current_best[0]):
+                    player_stats[bowler]['best_bowling'] = f"{bowl_stats['wickets']}/{bowl_stats['runs']}"
+                elif bowl_stats['wickets'] == int(current_best[0]) and bowl_stats['runs'] < int(current_best[1]):
+                    player_stats[bowler]['best_bowling'] = f"{bowl_stats['wickets']}/{bowl_stats['runs']}"
+    
+    save_data(STATS_FILE, player_stats)
     return embed
+@bot.command(name='removestats')
+async def remove_stats(ctx):
+    """Remove stats from a match result (reply to raw stats message)"""
+    if not ctx.message.reference:
+        await ctx.send("❌ Please reply to a raw stats message to remove stats!")
+        return
+    
+    await ctx.send("⚠️ **Warning:** Removing stats is complex and may cause inconsistencies. Consider resetting all stats instead with `!resetstats`.")
+@bot.command(name='addstats')
+async def add_stats(ctx):
+    """Add stats from a match result (reply to raw stats message)"""
+    if not ctx.message.reference:
+        await ctx.send("❌ Please reply to a raw stats message to add stats!")
+        return
+    
+    try:
+        # Get the referenced message
+        ref_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+        
+        # Extract JSON from code block
+        content = ref_message.content
+        if '```json' in content:
+            json_str = content.split('```json')[1].split('```')[0].strip()
+            raw_stats = json.loads(json_str)
+            
+            # Update player stats
+            update_player_stats(raw_stats)
+            
+            await ctx.send(f"✅ Stats added successfully for match: {raw_stats['match_id']}")
+        else:
+            await ctx.send("❌ No valid stats found in the referenced message!")
+    
+    except Exception as e:
+        await ctx.send(f"❌ Error adding stats: {str(e)}")
+@bot.command(name='standings')
+async def standings(ctx):
+    """Show team standings/leaderboard"""
+    if not teams_data:
+        await ctx.send("❌ No teams registered yet!")
+        return
+    
+    # Sort teams by wins, then by overall rating
+    sorted_teams = sorted(
+        teams_data.items(),
+        key=lambda x: (x[1].get('wins', 0), x[1].get('overall', 0)),
+        reverse=True
+    )
+    
+    embed = discord.Embed(
+        title="🏆 TEAM STANDINGS",
+        description="Rankings based on wins and team strength",
+        color=0xffd700
+    )
+    
+    standings_text = "```\n"
+    standings_text += f"{'Rank':<6} {'Team':<20} {'P':<4} {'W':<4} {'L':<4} {'Rating':<8}\n"
+    standings_text += "-" * 50 + "\n"
+    
+    for rank, (team_name, team_info) in enumerate(sorted_teams, 1):
+        matches = team_info.get('matches_played', 0)
+        wins = team_info.get('wins', 0)
+        losses = matches - wins
+        rating = team_info.get('overall', 0)
+        
+        medal = ""
+        if rank == 1:
+            medal = "🥇"
+        elif rank == 2:
+            medal = "🥈"
+        elif rank == 3:
+            medal = "🥉"
+        
+        standings_text += f"{medal}{rank:<5} {team_name[:19]:<20} {matches:<4} {wins:<4} {losses:<4} {rating:<8.1f}\n"
+    
+    standings_text += "```"
+    
+    embed.description = standings_text
+    embed.set_footer(text="P=Played | W=Wins | L=Losses")
+    
+    await ctx.send(embed=embed)
+
+@bot.command(name='lb')
+async def leaderboard(ctx, category: str = "all"):
+    """Show player leaderboards - Categories: PURPLE_CAP, ORANGE_CAP, DUCK, ALL"""
+    if not player_stats:
+        await ctx.send("❌ No player statistics available yet! Play some matches first.")
+        return
+    
+    category = category.upper()
+    
+    if category == "PURPLE_CAP" or category == "PURPLE":
+        # Most wickets
+        sorted_players = sorted(
+            player_stats.items(),
+            key=lambda x: x[1].get('wickets', 0),
+            reverse=True
+        )[:10]
+        
+        embed = discord.Embed(
+            title="🟣 PURPLE CAP - Most Wickets",
+            color=0x800080
+        )
+        
+        lb_text = "```\n"
+        lb_text += f"{'Rank':<6} {'Player':<20} {'Wickets':<10} {'Overs':<8} {'Econ':<8}\n"
+        lb_text += "-" * 55 + "\n"
+        
+        for rank, (player, stats) in enumerate(sorted_players, 1):
+            wickets = stats.get('wickets', 0)
+            overs = stats.get('overs_bowled', 0)
+            runs = stats.get('runs_conceded', 0)
+            econ = (runs / overs) if overs > 0 else 0
+            
+            lb_text += f"{rank:<6} {player[:19]:<20} {wickets:<10} {overs:<8} {econ:<8.2f}\n"
+        
+        lb_text += "```"
+        embed.description = lb_text
+    
+    elif category == "ORANGE_CAP" or category == "ORANGE":
+        # Most runs
+        sorted_players = sorted(
+            player_stats.items(),
+            key=lambda x: x[1].get('runs', 0),
+            reverse=True
+        )[:10]
+        
+        embed = discord.Embed(
+            title="🟠 ORANGE CAP - Most Runs",
+            color=0xff8c00
+        )
+        
+        lb_text = "```\n"
+        lb_text += f"{'Rank':<6} {'Player':<20} {'Runs':<8} {'HS':<6} {'SR':<8}\n"
+        lb_text += "-" * 50 + "\n"
+        
+        for rank, (player, stats) in enumerate(sorted_players, 1):
+            runs = stats.get('runs', 0)
+            hs = stats.get('highest_score', 0)
+            balls = stats.get('balls', 1)
+            sr = (runs / balls * 100) if balls > 0 else 0
+            
+            lb_text += f"{rank:<6} {player[:19]:<20} {runs:<8} {hs:<6} {sr:<8.1f}\n"
+        
+        lb_text += "```"
+        embed.description = lb_text
+    
+    elif category == "DUCK" or category == "DUCKS":
+        # Most ducks
+        sorted_players = sorted(
+            player_stats.items(),
+            key=lambda x: x[1].get('ducks', 0),
+            reverse=True
+        )[:10]
+        
+        sorted_players = [p for p in sorted_players if p[1].get('ducks', 0) > 0]
+        
+        embed = discord.Embed(
+            title="🦆 GOLDEN DUCK - Most Ducks",
+            description="*Players who got out for 0 most times*",
+            color=0xffff00
+        )
+        
+        lb_text = "```\n"
+        lb_text += f"{'Rank':<6} {'Player':<25} {'Ducks':<10} {'Matches':<10}\n"
+        lb_text += "-" * 55 + "\n"
+        
+        for rank, (player, stats) in enumerate(sorted_players, 1):
+            ducks = stats.get('ducks', 0)
+            matches = stats.get('matches', 0)
+            
+            lb_text += f"{rank:<6} {player[:24]:<25} {ducks:<10} {matches:<10}\n"
+        
+        lb_text += "```"
+        
+        if not sorted_players:
+            lb_text = "No ducks recorded yet! 🎉"
+        
+        embed.description = lb_text
+    
+    else:  # ALL
+        embed = discord.Embed(
+            title="📊 ALL LEADERBOARDS",
+            color=0x00ff00
+        )
+        
+        # Top 3 run scorers
+        top_runs = sorted(player_stats.items(), key=lambda x: x[1].get('runs', 0), reverse=True)[:3]
+        runs_text = ""
+        for i, (player, stats) in enumerate(top_runs, 1):
+            runs_text += f"{i}. **{player}** - {stats.get('runs', 0)} runs\n"
+        embed.add_field(name="🟠 Top Run Scorers", value=runs_text or "No data", inline=True)
+        
+        # Top 3 wicket takers
+        top_wickets = sorted(player_stats.items(), key=lambda x: x[1].get('wickets', 0), reverse=True)[:3]
+        wickets_text = ""
+        for i, (player, stats) in enumerate(top_wickets, 1):
+            wickets_text += f"{i}. **{player}** - {stats.get('wickets', 0)} wickets\n"
+        embed.add_field(name="🟣 Top Wicket Takers", value=wickets_text or "No data", inline=True)
+        
+        # Top 3 ducks
+        top_ducks = sorted(player_stats.items(), key=lambda x: x[1].get('ducks', 0), reverse=True)[:3]
+        top_ducks = [p for p in top_ducks if p[1].get('ducks', 0) > 0]
+        ducks_text = ""
+        for i, (player, stats) in enumerate(top_ducks, 1):
+            ducks_text += f"{i}. **{player}** - {stats.get('ducks', 0)} ducks 🦆\n"
+        embed.add_field(name="🦆 Most Ducks", value=ducks_text or "No ducks! 🎉", inline=False)
+        
+        embed.set_footer(text="Use !lb PURPLE_CAP, !lb ORANGE_CAP, or !lb DUCK for detailed leaderboards")
+    
+    await ctx.send(embed=embed)
+@bot.command(name='updates')
+async def updates(ctx):
+    """Show bot updates and changelog"""
+    embed = discord.Embed(
+        title="🆕 BOT UPDATES & CHANGELOG",
+        description="Latest features and improvements",
+        color=0x00ff00
+    )
+    
+    embed.add_field(
+        name="✨ Version 2.0 - Interactive Simulation",
+        value=(
+            "• 🎮 **!simlive** - Interactive over-by-over with buttons\n"
+            "• ⏭️ Next Over button for manual control\n"
+            "• ⏩ Simulate All for fast-forward\n"
+            "• 📊 Live scorecard view"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📊 Statistics System",
+        value=(
+            "• 📈 **!addstats** - Add match stats to leaderboard\n"
+            "• 🗑️ **!removestats** - Remove match stats\n"
+            "• 🏆 **!standings** - Team rankings\n"
+            "• 🏅 **!lb** - Player leaderboards (Orange Cap, Purple Cap, Ducks)"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📅 Fixtures & Results",
+        value=(
+            "• 📋 **!fixtures** - Manage upcoming matches\n"
+            "• 📤 **!result** - Forward results to specific channel\n"
+            "• 🔔 Auto result posting system"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🎯 Enhanced Features",
+        value=(
+            "• 🎲 Random pitch and weather conditions\n"
+            "• 📊 Detailed batting and bowling stats\n"
+            "• 🎯 Win probability calculator\n"
+            "• 👥 Player database with 80+ players\n"
+            "• 🏏 Team validation system"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🔮 Coming Soon",
+        value=(
+            "• 🏟️ Tournament mode\n"
+            "• 📱 Player cards\n"
+            "• 🎯 Fantasy league\n"
+            "• 📊 Advanced analytics"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text=f"Bot Version 2.0 | Last Updated: {datetime.now().strftime('%B %d, %Y')}")
+    
+    await ctx.send(embed=embed)
+@bot.command(name='fixtures')
+async def fixtures(ctx, action: str = "list", team1: str = None, team2: str = None, *, date: str = None):
+    """Manage fixtures - Usage: !fixtures add <team1> <team2> <date> | !fixtures list | !fixtures remove <index>"""
+    
+    if action.lower() == "add":
+        if not team1 or not team2:
+            await ctx.send("❌ Usage: `!fixtures add <team1> <team2> <date>`")
+            return
+        
+        if team1 not in teams_data or team2 not in teams_data:
+            await ctx.send(f"❌ One or both teams not found!")
+            return
+        
+        fixture = {
+            'id': len(fixtures_data['fixtures']) + 1,
+            'team1': team1,
+            'team2': team2,
+            'date': date or "TBD",
+            'added_by': str(ctx.author),
+            'added_at': datetime.now().isoformat()
+        }
+        
+        fixtures_data['fixtures'].append(fixture)
+        save_data(FIXTURES_FILE, fixtures_data)
+        
+        await ctx.send(f"✅ Fixture added: **{team1}** vs **{team2}** on {date or 'TBD'}")
+    
+    elif action.lower() == "list":
+        if not fixtures_data['fixtures']:
+            await ctx.send("❌ No upcoming fixtures!")
+            return
+        
+        embed = discord.Embed(
+            title="📅 UPCOMING FIXTURES",
+            color=0x3498db
+        )
+        
+        for fixture in fixtures_data['fixtures']:
+            fixture_text = f"**{fixture['team1']}** vs **{fixture['team2']}**\n"
+            fixture_text += f"📅 Date: {fixture['date']}\n"
+            fixture_text += f"ID: {fixture['id']}"
+            
+            embed.add_field(
+                name=f"Match #{fixture['id']}",
+                value=fixture_text,
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+    
+    elif action.lower() == "remove":
+        if not team1 or not team1.isdigit():
+            await ctx.send("❌ Usage: `!fixtures remove <fixture_id>`")
+            return
+        
+        fixture_id = int(team1)
+        fixtures_data['fixtures'] = [f for f in fixtures_data['fixtures'] if f['id'] != fixture_id]
+        save_data(FIXTURES_FILE, fixtures_data)
+        
+        await ctx.send(f"✅ Fixture #{fixture_id} removed!")
+    
+    else:
+        await ctx.send("❌ Invalid action! Use: `add`, `list`, or `remove`")
+
+@bot.command(name='result')
+async def result(ctx, channel: discord.TextChannel = None):
+    """Forward match result to a specific channel (reply to stats message)"""
+    
+    if channel:
+        # Set result channel
+        result_channels[str(ctx.guild.id)] = channel.id
+        save_data(RESULT_CHANNEL_FILE, result_channels)
+        await ctx.send(f"✅ Match results will now be forwarded to {channel.mention}")
+        return
+    
+    if not ctx.message.reference:
+        await ctx.send("❌ Please reply to a stats message or specify a channel: `!result #channel`")
+        return
+    
+    try:
+        # Get the referenced message
+        ref_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+        
+        # Check if result channel is set
+        guild_id = str(ctx.guild.id)
+        if guild_id not in result_channels:
+            await ctx.send("❌ No result channel set! Use `!result #channel` first.")
+            return
+        
+        result_channel_id = result_channels[guild_id]
+        result_channel = bot.get_channel(result_channel_id)
+        
+        if not result_channel:
+            await ctx.send("❌ Result channel not found!")
+            return
+        
+        # Forward the message
+        await result_channel.send(f"**Match Result Posted by {ctx.author.mention}:**\n{ref_message.content}")
+        await ctx.send(f"✅ Result forwarded to {result_channel.mention}")
+    
+    except Exception as e:
+        await ctx.send(f"❌ Error forwarding result: {str(e)}")
+@bot.command(name='standings')
+async def standings(ctx):
+    """Show team standings/leaderboard"""
+    if not teams_data:
+        await ctx.send("❌ No teams registered yet!")
+        return
+    
+    # Sort teams by wins, then by overall rating
+    sorted_teams = sorted(
+        teams_data.items(),
+        key=lambda x: (x[1].get('wins', 0), x[1].get('overall', 0)),
+        reverse=True
+    )
+    
+    embed = discord.Embed(
+        title="🏆 TEAM STANDINGS",
+        description="Rankings based on wins and team strength",
+        color=0xffd700
+    )
+    
+    standings_text = "```\n"
+    standings_text += f"{'Rank':<6} {'Team':<20} {'P':<4} {'W':<4} {'L':<4} {'Rating':<8}\n"
+    standings_text += "-" * 50 + "\n"
+    
+    for rank, (team_name, team_info) in enumerate(sorted_teams, 1):
+        matches = team_info.get('matches_played', 0)
+        wins = team_info.get('wins', 0)
+        losses = matches - wins
+        rating = team_info.get('overall', 0)
+        
+        medal = ""
+        if rank == 1:
+            medal = "🥇"
+        elif rank == 2:
+            medal = "🥈"
+        elif rank == 3:
+            medal = "🥉"
+        
+        standings_text += f"{medal}{rank:<5} {team_name[:19]:<20} {matches:<4} {wins:<4} {losses:<4} {rating:<8.1f}\n"
+    
+    standings_text += "```"
+    
+    embed.description = standings_text
+    embed.set_footer(text="P=Played | W=Wins | L=Losses")
+    
+    await ctx.send(embed=embed)
+
+@bot.command(name='lb')
+async def leaderboard(ctx, category: str = "all"):
+    """Show player leaderboards - Categories: PURPLE_CAP, ORANGE_CAP, DUCK, ALL"""
+    if not player_stats:
+        await ctx.send("❌ No player statistics available yet! Play some matches first.")
+        return
+    
+    category = category.upper()
+    
+    if category == "PURPLE_CAP" or category == "PURPLE":
+        # Most wickets
+        sorted_players = sorted(
+            player_stats.items(),
+            key=lambda x: x[1].get('wickets', 0),
+            reverse=True
+        )[:10]
+        
+        embed = discord.Embed(
+            title="🟣 PURPLE CAP - Most Wickets",
+            color=0x800080
+        )
+        
+        lb_text = "```\n"
+        lb_text += f"{'Rank':<6} {'Player':<20} {'Wickets':<10} {'Overs':<8} {'Econ':<8}\n"
+        lb_text += "-" * 55 + "\n"
+        
+        for rank, (player, stats) in enumerate(sorted_players, 1):
+            wickets = stats.get('wickets', 0)
+            overs = stats.get('overs_bowled', 0)
+            runs = stats.get('runs_conceded', 0)
+            econ = (runs / overs) if overs > 0 else 0
+            
+            lb_text += f"{rank:<6} {player[:19]:<20} {wickets:<10} {overs:<8} {econ:<8.2f}\n"
+        
+        lb_text += "```"
+        embed.description = lb_text
+    
+    elif category == "ORANGE_CAP" or category == "ORANGE":
+        # Most runs
+        sorted_players = sorted(
+            player_stats.items(),
+            key=lambda x: x[1].get('runs', 0),
+            reverse=True
+        )[:10]
+        
+        embed = discord.Embed(
+            title="🟠 ORANGE CAP - Most Runs",
+            color=0xff8c00
+        )
+        
+        lb_text = "```\n"
+        lb_text += f"{'Rank':<6} {'Player':<20} {'Runs':<8} {'HS':<6} {'SR':<8}\n"
+        lb_text += "-" * 50 + "\n"
+        
+        for rank, (player, stats) in enumerate(sorted_players, 1):
+            runs = stats.get('runs', 0)
+            hs = stats.get('highest_score', 0)
+            balls = stats.get('balls', 1)
+            sr = (runs / balls * 100) if balls > 0 else 0
+            
+            lb_text += f"{rank:<6} {player[:19]:<20} {runs:<8} {hs:<6} {sr:<8.1f}\n"
+        
+        lb_text += "```"
+        embed.description = lb_text
+    
+    elif category == "DUCK" or category == "DUCKS":
+        # Most ducks
+        sorted_players = sorted(
+            player_stats.items(),
+            key=lambda x: x[1].get('ducks', 0),
+            reverse=True
+        )[:10]
+        
+        sorted_players = [p for p in sorted_players if p[1].get('ducks', 0) > 0]
+        
+        embed = discord.Embed(
+            title="🦆 GOLDEN DUCK - Most Ducks",
+            description="*Players who got out for 0 most times*",
+            color=0xffff00
+        )
+        
+        lb_text = "```\n"
+        lb_text += f"{'Rank':<6} {'Player':<25} {'Ducks':<10} {'Matches':<10}\n"
+        lb_text += "-" * 55 + "\n"
+        
+        for rank, (player, stats) in enumerate(sorted_players, 1):
+            ducks = stats.get('ducks', 0)
+            matches = stats.get('matches', 0)
+            
+            lb_text += f"{rank:<6} {player[:24]:<25} {ducks:<10} {matches:<10}\n"
+        
+        lb_text += "```"
+        
+        if not sorted_players:
+            lb_text = "No ducks recorded yet! 🎉"
+        
+        embed.description = lb_text
+    
+    else:  # ALL
+        embed = discord.Embed(
+            title="📊 ALL LEADERBOARDS",
+            color=0x00ff00
+        )
+        
+        # Top 3 run scorers
+        top_runs = sorted(player_stats.items(), key=lambda x: x[1].get('runs', 0), reverse=True)[:3]
+        runs_text = ""
+        for i, (player, stats) in enumerate(top_runs, 1):
+            runs_text += f"{i}. **{player}** - {stats.get('runs', 0)} runs\n"
+        embed.add_field(name="🟠 Top Run Scorers", value=runs_text or "No data", inline=True)
+        
+        # Top 3 wicket takers
+        top_wickets = sorted(player_stats.items(), key=lambda x: x[1].get('wickets', 0), reverse=True)[:3]
+        wickets_text = ""
+        for i, (player, stats) in enumerate(top_wickets, 1):
+            wickets_text += f"{i}. **{player}** - {stats.get('wickets', 0)} wickets\n"
+        embed.add_field(name="🟣 Top Wicket Takers", value=wickets_text or "No data", inline=True)
+        
+        # Top 3 ducks
+        top_ducks = sorted(player_stats.items(), key=lambda x: x[1].get('ducks', 0), reverse=True)[:3]
+        top_ducks = [p for p in top_ducks if p[1].get('ducks', 0) > 0]
+        ducks_text = ""
+        for i, (player, stats) in enumerate(top_ducks, 1):
+            ducks_text += f"{i}. **{player}** - {stats.get('ducks', 0)} ducks 🦆\n"
+        embed.add_field(name="🦆 Most Ducks", value=ducks_text or "No ducks! 🎉", inline=False)
+        
+        embed.set_footer(text="Use !lb PURPLE_CAP, !lb ORANGE_CAP, or !lb DUCK for detailed leaderboards")
+    
+    await ctx.send(embed=embed)
+@bot.command(name='resetstats')
+async def reset_stats(ctx):
+    """Reset all player statistics (Admin only)"""
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ Only administrators can reset stats!")
+        return
+    
+    global player_stats
+    player_stats = {}
+    save_data(STATS_FILE, player_stats)
+    await ctx.send("✅ All player statistics have been reset!")
 
 @bot.command(name='sim')
 async def simulate_match(ctx, team1_name: str, team2_name: str):
@@ -856,7 +2002,10 @@ async def simulate_match(ctx, team1_name: str, team2_name: str):
         embed=summary_embed,
         view=view
     )
-
+    
+    # Send raw stats for adding to leaderboard
+    raw_stats = create_raw_stats(final_team1, final_team2, winner, pitch_name, weather_name)
+    stats_msg = await ctx.send(f"```json\n{json.dumps(raw_stats, indent=2)}\n```\n*Reply to this message with `!addstats` to add to leaderboard*")
 
 @bot.command(name='simlive')
 async def simulate_match_live(ctx, team1_name: str, team2_name: str):
@@ -986,6 +2135,19 @@ async def simulate_match_live(ctx, team1_name: str, team2_name: str):
         view=view
     )
 
+await self.ctx.send(
+            "**🏏 Match Complete! Use buttons below to view detailed scorecards:**",
+            embed=summary_embed,
+            view=view
+        )
+        
+        # Send raw stats
+        raw_stats = create_raw_stats(
+            final_team1, final_team2, winner, self.pitch_name, self.weather_name
+        )
+        stats_msg = await self.ctx.send(
+            f"```json\n{json.dumps(raw_stats, indent=2)}\n```\n*Reply to this message with `!addstats` to add to leaderboard*"
+        )
 @bot.command(name='players')
 async def list_players(ctx):
     """List all players"""
