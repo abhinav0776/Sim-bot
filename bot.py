@@ -4,7 +4,7 @@ from discord import app_commands
 import asyncio
 
 # CONFIGURATION - Add your Discord user ID here
-AUTHORIZED_USER_ID = 123456789012345678  # Replace with your actual Discord user ID
+AUTHORIZED_USER_ID = 1448703714612220116 # Replace with your actual Discord user ID
 
 # Bot setup with required intents
 intents = discord.Intents.default()
